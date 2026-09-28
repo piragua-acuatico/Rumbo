@@ -4,8 +4,7 @@ import { esc, fmtTime, fromMin, daysText, fmtDur } from '../utils.js';
 import { largeTitle, cell, segmented, toggleSwitch, stepper, timeField, selectField } from '../components.js';
 import { icon } from '../icons.js';
 import { GUIDES } from '../guides.js';
-
-export { VERSION as APP_VERSION } from '../version.js';
+import { VERSION as APP_VERSION } from '../version.js';
 
 export function viewSettings() {
   const s = state.settings;

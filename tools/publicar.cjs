@@ -27,6 +27,10 @@ for (const f of [...jsFiles, 'sw.js']) {
   catch (e) { fail(`Error de sintaxis en ${f}:\n${e.stderr}`); }
 }
 
+// 1b. Prueba en un navegador real: si alguna pantalla falla, no se publica.
+try { execFileSync(process.execPath, [path.join(__dirname, 'probar.cjs')], { cwd: root, stdio: 'inherit' }); }
+catch { fail('No se publicó porque la prueba en navegador encontró problemas.'); }
+
 // 2. Nueva versión (sube el último número: 2.1.0 → 2.1.1).
 const versionFile = fs.readFileSync(rel('js/version.js'), 'utf8');
 const current = versionFile.match(/VERSION = '(\d+)\.(\d+)\.(\d+)'/);

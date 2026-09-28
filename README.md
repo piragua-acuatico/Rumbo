@@ -29,10 +29,11 @@ node tools/serve.cjs
 node tools/publicar.cjs "qué cambió"
 ```
 El comando:
-1. Revisa que el código no tenga errores.
-2. Sube la versión en `js/version.js` y `sw.js`.
-3. Regenera la lista de archivos que se guardan para usar sin internet.
-4. Guarda el cambio y lo sube a GitHub.
+1. Revisa que el código no tenga errores de sintaxis.
+2. Abre la app en un Chrome real, sin ventana, y recorre todas las pestañas y hojas (`tools/probar.cjs`). Si algo falla, no publica.
+3. Sube la versión en `js/version.js` y `sw.js`.
+4. Regenera la lista de archivos que se guardan para usar sin internet.
+5. Guarda el cambio y lo sube a GitHub.
 
 GitHub Pages lo publica en 1 o 2 minutos. La próxima vez que abras Rumbo en el iPhone, se actualiza solo y avisa "Rumbo se actualizó". Si estás escribiendo o tienes algo abierto, no te interrumpe: aparece un botón **Actualizar**. Tus datos no se tocan.
 

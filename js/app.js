@@ -1,10 +1,11 @@
 // Rumbo — arranque, render y eventos globales.
 import { state, subscribe, prune, getTask, tasksFor, waterSlots, planTarget, loadProblem } from './store.js';
-import { todayKey, nowMin, toMin, fmtTime } from './utils.js';
+import { todayKey, nowMin, toMin, fmtTime, esc } from './utils.js';
 import { morph } from './morph.js';
 import { run } from './actions.js';
 import { ui } from './ui.js';
 import { icon } from './icons.js';
+import { emptyState } from './components.js';
 import { toast, autosize } from './fx.js';
 import { refreshSheet, closeSheet, sheetOpen } from './sheet.js';
 import { initSwipe } from './swipe.js';
@@ -92,7 +93,18 @@ function syncLive(root) {
 let lastTab = null;
 function render() {
   const view = $('#view');
-  const html = VIEWS[ui.tab]();
+  let html;
+  try {
+    html = VIEWS[ui.tab]();
+  } catch (err) {
+    // Si una pantalla falla, se muestra un aviso en lugar de quedar en blanco.
+    console.error(err);
+    html = `<div class="list" data-key="view-error" style="margin-top:24px">${emptyState({
+      ic: 'xmark', tint: 'c-red', title: 'Esta pantalla tuvo un problema',
+      text: `Tus datos están a salvo. Prueba otra pestaña o vuelve a abrir Rumbo. (${esc(err.message)})`,
+      key: 'view-error-empty',
+    })}</div>`;
+  }
   if (lastTab !== ui.tab) {
     view.innerHTML = html;
     view.classList.remove('view-enter');
