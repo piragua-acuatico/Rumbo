@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es" data-accent="indigo">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rumbo</title>
+  <meta name="description" content="Organiza tu día desde la noche anterior.">
+  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rumbo">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/store.js">
+  <link rel="modulepreload" href="js/utils.js">
+</head>
+<body>
+  <div class="navbar" aria-hidden="true"><span id="navTitle">Hoy</span></div>
+
+  <div id="app">
+    <main id="view" tabindex="-1"></main>
+  </div>
+
+  <button id="focusPill" class="focus-pill" data-action="focus-pill" aria-label="Abrir enfoque" hidden></button>
+
+  <nav class="tabbar" aria-label="Secciones">
+    <div class="tabs glass-mat" id="tabs"></div>
+    <button class="fab" id="fab" data-action="add" aria-label="Nueva tarea"></button>
+  </nav>
+
+  <div id="sheetHost"></div>
+  <div id="focus" class="focus" hidden></div>
+  <div id="night" class="night" hidden></div>
+  <div id="onboarding" class="onb" hidden></div>
+  <div id="alertHost"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <noscript>Rumbo necesita JavaScript.</noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

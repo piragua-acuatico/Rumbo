@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- Solo para desarrollo: carga datos de ejemplo y abre Rumbo en un marco.
+     Parámetros: ?tab=hoy&theme=dark&night=0&onb=1&scroll=0&do=selector1,wait800,selector2&keep=1
+     Funciona solo en localhost para no pisar datos reales. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rumbo demo</title>
+  <style>html, body { margin: 0; height: 100%; background: #000; } iframe { border: 0; width: 100%; height: 100%; display: block; }</style>
+</head>
+<body>
+  <iframe id="f" title="Rumbo"></iframe>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const pad = n => String(n).padStart(2, '0');
+    const key = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const add = n => { const d = new Date(); d.setDate(d.getDate() + n); return key(d); };
+
+    function seed() {
+      let id = 0;
+      const T = (title, date, o = {}) => ({ id: 't' + (++id), title, date, time: null, duration: null, important: false, done: false, doneAt: null, notes: '', category: null, subtasks: [], routineId: null, createdAt: Date.now() - id * 1000, ...o });
+      const s = {
+        version: 2, onboarded: p.get('onb') !== '0', tasks: [], routines: [], routineSkips: {}, water: {}, focusLog: {}, journal: {}, planned: {}, exported: {}, guide: { 'install.0': true, 'block.0': true, 'block.1': true }, hideInstall: p.get('install') !== '1', focus: null,
+        settings: { name: 'Camilo', theme: p.get('theme') || 'auto', accent: p.get('accent') || 'indigo', waterGoalMl: 2000, glassMl: 250, waterStart: '08:00', waterEnd: '21:00', waterEvery: 120, focusGoal: 60, focusDefault: 25, nightMode: p.get('night') === '1', nightStart: '23:00', nightEnd: '06:00', planTime: p.get('plan') || '21:30', leadMin: 5 },
+      };
+      s.tasks = [
+        T('Gimnasio', add(0), { time: '06:30', duration: 60, category: 'salud', done: true }),
+        T('Revisar correos', add(0), { time: '08:00', duration: 30, category: 'trabajo', done: true }),
+        T('Reunión con el equipo', add(0), { time: '10:00', duration: 60, category: 'trabajo', important: true }),
+        T('Almuerzo con Laura', add(0), { time: '13:00', duration: 60, category: 'personal' }),
+        T('Terminar la presentación', add(0), { time: '15:00', duration: 90, category: 'trabajo', important: true, subtasks: [{ id: 's1', title: 'Diapositivas', done: true }, { id: 's2', title: 'Ensayar en voz alta', done: false }], notes: 'Enviar a Andrés antes de las 6 pm.' }),
+        T('Comprar mercado', add(0), { category: 'hogar' }),
+        T('Llamar a mamá', add(0), { important: true }),
+        T('Leer 20 páginas', add(0), { done: true, category: 'estudio' }),
+        T('Pagar el internet', add(-1), {}),
+        T('Correr 5 km', add(1), { time: '06:30', duration: 45, category: 'salud' }),
+        T('Clase de inglés', add(1), { time: '18:00', duration: 90, category: 'estudio', important: true }),
+        T('Renovar el pasaporte', null, { category: 'personal' }),
+        T('Organizar el clóset', null, { category: 'hogar' }),
+        T('Aprender a hacer pan', null, {}),
+        T('Cotizar seguro del carro', null, { category: 'trabajo', important: true }),
+        T('Dentista', add(3), { time: '16:00', duration: 60, category: 'salud' }),
+        T('Cumpleaños de Sofía', add(5), { important: true, category: 'personal' }),
+      ];
+      const w = [1750, 2250, 1500, 2000, 2500, 1250, 1000], f = [45, 90, 25, 60, 75, 30, 25], moods = [4, 5, 3, 4, 5, 2];
+      for (let i = 0; i < 30; i++) {
+        const k = add(-i);
+        s.water[k] = i < 7 ? w[i] : 1000 + ((i * 7) % 6) * 250;
+        s.focusLog[k] = i < 7 ? f[i] : ((i * 5) % 6) * 15;
+        if (i > 0 && i < 9) s.planned[add(-i + 1)] = Date.now();
+      }
+      const counts = [5, 4, 6, 3, 5, 4];
+      for (let i = 1; i < 7; i++) {
+        const k = add(-i);
+        s.journal[k] = { mood: moods[i - 1], note: i === 1 ? 'Terminé el informe antes de tiempo y salí a caminar al atardecer.' : i === 3 ? 'Me costó concentrarme; mañana empiezo más temprano.' : '' };
+        for (let j = 0; j < counts[i - 1]; j++) s.tasks.push(T('Tarea ' + j, k, { done: true }));
+      }
+      s.routines = [{ id: 'r1', title: 'Meditar 10 min', time: null, duration: 15, days: [0, 1, 2, 3, 4, 5, 6], category: 'salud' }];
+      if (p.get('planned') === '0') { delete s.planned[add(0)]; delete s.planned[add(1)]; }
+      if (p.get('empty') === '1') { s.tasks = []; s.water = {}; s.focusLog = {}; s.journal = {}; s.planned = {}; s.routines = []; }
+      localStorage.setItem('rumbo.v1', JSON.stringify(s));
+      sessionStorage.setItem('rumbo.fired', JSON.stringify(['*']));
+    }
+
+    if (local && p.get('keep') !== '1') seed();
+    const f = document.getElementById('f');
+    if (p.get('w')) f.style.width = p.get('w') + 'px';
+    if (p.get('h')) f.style.height = p.get('h') + 'px';
+    f.src = `../index.html#${p.get('tab') || 'hoy'}`;
+    f.onload = () => {
+      const steps = (p.get('do') || '').split(',').filter(Boolean);
+      const doc = f.contentDocument;
+      const next = () => {
+        if (!steps.length) { if (p.get('scroll')) f.contentWindow.scrollTo(0, Number(p.get('scroll'))); return; }
+        const s = steps.shift();
+        if (s.startsWith('wait')) { setTimeout(next, Number(s.slice(4))); return; }
+        if (s.startsWith('scroll')) { f.contentWindow.scrollTo(0, Number(s.slice(6))); setTimeout(next, 300); return; }
+        if (s.startsWith('type:')) {
+          const [sel, text] = s.slice(5).split('=');
+          const el = doc.querySelector(sel);
+          if (el) { el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); }
+          setTimeout(next, 400);
+          return;
+        }
+        const el = doc.querySelector(s);
+        if (el) el.click(); else console.warn('No encontrado:', s);
+        setTimeout(next, 800);
+      };
+      setTimeout(next, 700);
+    };
+  </script>
+</body>
+</html>
