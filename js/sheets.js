@@ -1,6 +1,6 @@
 // Contenido de las hojas: nueva tarea, detalle, rutina, guías y archivos.
 import { state, CATEGORIES, catOf, addTask, getTask, commit, setTaskDate, planTarget } from './store.js';
-import { todayKey, addDays, esc, fmtTime, relDate, fmtDur, WEEK, parseKey, fmtDateLong } from './utils.js';
+import { todayKey, addDays, esc, fmtTime, relDate, fmtDur, WEEK, fmtDateLong } from './utils.js';
 import { segmented, toggleSwitch } from './components.js';
 import { parseQuick } from './parse.js';
 import { icon } from './icons.js';
@@ -286,32 +286,28 @@ export function openGuide(id) {
 }
 
 /* =========================================================
-   Archivos (.ics / respaldo)
+   Archivos (copia de seguridad)
    ========================================================= */
 let pendingFile = null;
 export const getPendingFile = () => pendingFile;
 
-export function openFileSheet({ filename, text, type, title, message, steps, calendarDay = null, onOpenFile }) {
+export function openFileSheet({ filename, text, type, title, message, steps, onOpenFile }) {
   pendingFile = { file: new File([text], filename, { type }), onOpenFile };
   const canShare = !!(navigator.canShare && navigator.canShare({ files: [pendingFile.file] }));
-  const day = calendarDay ? parseKey(calendarDay) : new Date();
-  const month = new Intl.DateTimeFormat('es', { weekday: 'short' }).format(day).replace('.', '');
   openSheet({
     key: 'file',
     title: '',
     auto: true,
     render: () => `
       <div class="file-hero">
-        ${type === 'text/calendar'
-          ? `<div class="cal-icon"><span>${month}</span><b>${day.getDate()}</b></div>`
-          : `<div class="guide-hero" style="--tint: var(--c-gray);padding:0 0 12px"><div class="big-ic">${icon('download')}</div></div>`}
+        <div class="guide-hero" style="--tint: var(--c-blue);padding:0 0 12px"><div class="big-ic">${icon('download')}</div></div>
         <h3>${title}</h3>
         <p>${message}</p>
       </div>
-      ${steps ? `<ol class="steps-mini">${steps.map(s => `<li><span>${s}</span></li>`).join('')}</ol>` : ''}
+      ${steps ? `<ol class="steps-mini">${steps.map(x => `<li><span>${x}</span></li>`).join('')}</ol>` : ''}
       <div style="display:grid;gap:10px">
-        <button class="btn primary block" data-action="file-open">${icon(type === 'text/calendar' ? 'calendar' : 'download')}${type === 'text/calendar' ? 'Abrir en Calendario' : 'Guardar archivo'}</button>
-        ${canShare ? `<button class="btn tinted block" data-action="file-share">${icon('share')}Compartir…</button>` : ''}
+        ${canShare ? `<button class="btn primary block" data-action="file-share">${icon('share')}Guardar en Archivos o iCloud…</button>` : ''}
+        <button class="btn ${canShare ? 'tinted' : 'primary'} block" data-action="file-open">${icon('download')}Descargar archivo</button>
       </div>`,
   });
 }

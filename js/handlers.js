@@ -3,7 +3,7 @@ import {
   state, commit, save, getTask, tasksFor, toggleTask, deleteTask, setTaskDate, addTask, addWater,
   ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, DEFAULT_SETTINGS,
 } from './store.js';
-import { todayKey, addDays, uid, fmtWeekday, plural, clamp, nowMin, toMin } from './utils.js';
+import { todayKey, addDays, uid, plural, clamp, nowMin, toMin } from './utils.js';
 import { on } from './actions.js';
 import { ui } from './ui.js';
 import { haptic, toast, confetti, animateOut, pop } from './fx.js';
@@ -12,7 +12,6 @@ import {
   openAdd, submitAdd, draft, effectiveDraft, openTask, currentDetail, setDetailWhen,
   openRoutine, routineDraft, openGuide, openFileSheet, getPendingFile, dateOf,
 } from './sheets.js';
-import { icsForDay, icsFixed, timedTasks } from './ics.js';
 import { closeOpenRow } from './swipe.js';
 import { openFocus, focusAction } from './focus.js';
 import { openOnboarding, onbNext, onbBack } from './onboarding.js';
@@ -24,9 +23,11 @@ const rowOf = el => el.closest('.row');
 const MOVED = { today: 'Movida a hoy', tomorrow: 'Movida a mañana', plan: 'Movida a mañana', inbox: 'Guardada en Pendientes' };
 const busy = new WeakSet(); // tareas con una animación de mover/borrar en curso
 
-export function registerHandlers({ go, render, applyTheme }) {
+export function registerHandlers({ go, back, render, applyTheme }) {
   /* ---------- Navegación ---------- */
-  on('go', el => go(el.dataset.tab));
+  on('go', el => go(el.dataset.tab, { seg: el.dataset.seg }));
+  on('back', () => back());
+  on('plan-seg', el => { ui.planSeg = el.dataset.value; haptic(); render(); });
   on('sheet-close', () => closeSheet());
 
   /* ---------- Tareas ---------- */
@@ -84,7 +85,8 @@ export function registerHandlers({ go, render, applyTheme }) {
 
   /* ---------- Nueva tarea ---------- */
   on('add', el => {
-    const preset = el.dataset.preset || { hoy: 'today', manana: 'plan', pendientes: 'inbox' }[ui.tab] || 'today';
+    const inPlan = ui.tab === 'plan' ? (ui.planSeg === 'pendientes' ? 'inbox' : 'plan') : null;
+    const preset = el.dataset.preset || inPlan || 'today';
     haptic();
     openAdd(preset);
   });
@@ -222,27 +224,7 @@ export function registerHandlers({ go, render, applyTheme }) {
     if (state.guide[key] && GUIDES[id].steps.every((_, i) => state.guide[`${id}.${i}`])) confetti();
   });
 
-  /* ---------- Calendario y archivos ---------- */
-  on('ics-day', el => {
-    const k = el.dataset.date;
-    const n = timedTasks(k).length;
-    openFileSheet({
-      filename: `rumbo-${k}.ics`, text: icsForDay(k), type: 'text/calendar', calendarDay: k,
-      title: `Recordatorios del ${fmtWeekday(k)}`,
-      message: `${plural(n, 'tarea', 'tareas')} con alerta ${Number(state.settings.leadMin) ? `${state.settings.leadMin} min antes` : 'a la hora exacta'}.`,
-      steps: ['Toca <b>Abrir en Calendario</b>.', 'Elige <b>Añadir todo</b> y el calendario <b>Rumbo</b>.', 'Listo: el iPhone te avisará aunque Rumbo esté cerrada.'],
-      onOpenFile: () => { state.exported[k] = true; commit(); },
-    });
-  });
-  on('ics-fixed', () => {
-    openFileSheet({
-      filename: 'rumbo-recordatorios-fijos.ics', text: icsFixed(), type: 'text/calendar',
-      title: 'Recordatorios fijos',
-      message: 'Agua, planear mañana y el aviso antes del modo noche. Se repiten todos los días.',
-      steps: ['Toca <b>Abrir en Calendario</b>.', 'Elige <b>Añadir todo</b> y el calendario <b>Rumbo</b>.', 'Hazlo una sola vez. Si cambias horarios, borra el calendario Rumbo y vuelve a instalarlos.'],
-      onOpenFile: () => { state.guide['install.3'] = true; commit(); },
-    });
-  });
+  /* ---------- Archivos (copia de seguridad) ---------- */
   on('file-open', () => {
     const p = getPendingFile();
     if (!p) return;
@@ -380,7 +362,7 @@ export function registerHandlers({ go, render, applyTheme }) {
   on('range', el => { ui.range = Number(el.dataset.value); ui.selBar = null; haptic(); render(); });
   on('bar', el => { ui.selBar = ui.selBar === el.dataset.sel ? null : el.dataset.sel; haptic(); render(); });
 
-  /* ---------- Ajustes ---------- */
+  /* ---------- Perfil y configuración ---------- */
   const setS = (key, value) => { state.settings[key] = value; commit(); };
   on('change:set-name', el => setS('name', el.value.trim()));
   on('input:onb-name', el => { state.settings.name = el.value.trim(); save(); });
@@ -390,6 +372,45 @@ export function registerHandlers({ go, render, applyTheme }) {
   on('change:set-glass', el => setS('glassMl', Number(el.value)));
   on('change:set-water-every', el => setS('waterEvery', Number(el.value)));
   on('change:set-time', el => setS(el.dataset.keySet, el.value || DEFAULT_SETTINGS[el.dataset.keySet]));
+  on('set-sleep-goal', el => { haptic(); setS('sleepGoal', clamp(state.settings.sleepGoal + Number(el.dataset.delta) * 0.5, 5, 11)); });
+  on('change:wake-for', el => { if (el.value) { state.wakeFor[el.dataset.date] = el.value; commit(); } });
+  on('wake-confirm', el => {
+    const input = el.closest('.wake-row')?.querySelector('input');
+    state.wakeFor[el.dataset.date] = input?.value || state.settings.wakeTime;
+    haptic('success');
+    commit();
+  });
+
+  /* ---------- Foto de perfil ---------- */
+  on('profile-photo', async () => {
+    if (state.profile.photo) {
+      const i = await alertDialog({
+        title: 'Foto de perfil', actions: [{ label: 'Cambiar foto', style: 'default' }, { label: 'Quitar foto', style: 'destructive' }, { label: 'Cancelar', style: 'cancel' }],
+      });
+      if (i === 1) { state.profile.photo = null; commit(); return; }
+      if (i !== 0) return;
+    }
+    document.getElementById('photoInput')?.click();
+  });
+  on('change:profile-photo-file', async el => {
+    const file = el.files?.[0];
+    el.value = '';
+    if (!file) return;
+    try {
+      const prev = state.profile.photo;
+      state.profile.photo = await squareThumb(file, 320);
+      // Si no cabe en el almacenamiento, no se deja a medias: se vuelve a la foto anterior.
+      if (!save()) {
+        state.profile.photo = prev;
+        toast('No hay espacio para la foto', { sub: 'Libera espacio en el iPhone e inténtalo de nuevo', icon: 'xmark', tint: 'c-red' });
+        return;
+      }
+      commit();
+      haptic('success');
+    } catch {
+      toast('No se pudo usar esa foto', { sub: 'Prueba con otra imagen', icon: 'xmark', tint: 'c-red' });
+    }
+  });
   on('set-focus-goal', el => { haptic(); setS('focusGoal', clamp(state.settings.focusGoal + Number(el.dataset.delta) * 15, 15, 480)); });
   on('set-focus-default', el => { haptic(); setS('focusDefault', Number(el.dataset.value)); });
   on('change:set-lead', el => setS('leadMin', Number(el.value)));
@@ -406,7 +427,7 @@ export function registerHandlers({ go, render, applyTheme }) {
   /* ---------- Modo noche ---------- */
   on('night-edit', () => {
     ui.nightBypassUntil = Date.now() + 5 * 60 * 1000;
-    go(nightPlanDate() === todayKey() ? 'hoy' : 'manana');
+    if (nightPlanDate() === todayKey()) go('hoy'); else go('plan', { seg: 'manana' });
     toast('Tienes 5 minutos', { sub: 'Ajusta lo necesario y a descansar', icon: 'clock', tint: 'c-indigo' });
   });
   on('submit:night-add', form => {
@@ -434,4 +455,22 @@ export function completeTask(t, el) {
     }
   }
   if (sheetKey() === 'task') refreshSheet();
+}
+
+/* Recorta una imagen al cuadrado del centro y la reduce (JPEG), para la foto de perfil. */
+function squareThumb(file, size) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      canvas.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('imagen')); };
+    img.src = url;
+  });
 }

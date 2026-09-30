@@ -1,7 +1,7 @@
-// Vista "Mañana": el ritual de la noche en 4 pasos.
+// Plan › Mañana: el ritual de la noche en 4 pasos.
 import { state, tasksFor, inboxTasks, ensureRoutines, planningStreak, planTarget, closingDay, MOODS, catOf } from '../store.js';
-import { fmtTime, fmtWeekday, parseKey, nowMin, toMin, esc, plural } from '../utils.js';
-import { largeTitle, taskRow } from '../components.js';
+import { fmtTime, fmtWeekday, fmtDur, nowMin, toMin, esc, plural } from '../utils.js';
+import { taskRow } from '../components.js';
 import { icon } from '../icons.js';
 
 function stepHead(n, ok, title, sub, right = '') {
@@ -13,7 +13,7 @@ function stepHead(n, ok, title, sub, right = '') {
     </div>`;
 }
 
-export function viewTomorrow() {
+export function viewRitual() {
   // k = el día que se cierra; tk = el día que se planea (respeta la medianoche).
   const tk = planTarget();
   const k = closingDay();
@@ -26,17 +26,14 @@ export function viewTomorrow() {
   const plan = tasksFor(tk);
   const imp = plan.filter(t => t.important).length;
   const inbox = inboxTasks().filter(t => !t.done);
-  const timedN = plan.filter(t => t.time && !t.done).length;
-  const ok = [undone.length === 0, !!journal.mood, plan.length > 0, timedN === 0 ? plan.length > 0 : !!state.exported[tk]];
+  const wake = state.wakeFor[tk];
+  const ok = [undone.length === 0, !!journal.mood, plan.length > 0, !!wake];
   const planned = !!state.planned[tk];
   const dayName = fmtWeekday(tk);
-  const dateNum = parseKey(tk).getDate();
   const late = nowMin() >= toMin(s.planTime);
 
   const out = [];
-  out.push(largeTitle('Planea tu mañana', `Para el ${dayName} ${dateNum}`));
-
-  const labels = ['Cerrar', 'Reflexión', 'Plan', 'Avisos'];
+  const labels = ['Cerrar', 'Reflexión', 'Plan', 'Despertar'];
   out.push(`
     <div data-key="ritual-top">
       <div class="ritual-steps">${labels.map((l, i) => `<div class="rs${ok[i] ? ' ok' : ''}"><i></i>${l}</div>`).join('')}</div>
@@ -95,14 +92,18 @@ export function viewTomorrow() {
         }).join('')}</div>` : ''}
     </section>`);
 
-  // 4 · Avisos
+  // 4 · Despertador
+  const wakeShown = wake || s.wakeTime;
+  const sleepMin = (toMin(wakeShown) - toMin(s.nightStart) + 1440) % 1440;
   out.push(`
     <section class="card step-card${ok[3] ? ' ok' : ''}" data-key="st4">
-      ${stepHead(4, ok[3], 'Que el iPhone te avise', timedN ? `${plural(timedN, 'tarea tiene', 'tareas tienen')} hora` : 'Ninguna tarea con hora')}
-      ${timedN
-        ? `<button class="btn ${state.exported[tk] ? 'tinted' : 'primary'} block" data-action="ics-day" data-date="${tk}">${icon('calendar')}${state.exported[tk] ? 'Enviar de nuevo al Calendario' : `Enviar ${plural(timedN, 'recordatorio', 'recordatorios')} al Calendario`}</button>
-           <p class="group-foot" style="margin:10px 2px 0">Cada tarea con hora llega al Calendario con una alerta ${Number(s.leadMin) ? `${s.leadMin} min antes` : 'a la hora exacta'}, así el iPhone te avisa aunque Rumbo esté cerrada.</p>`
-        : `<p class="done-note" style="color:var(--label-2)">${icon('bell')}Ponle hora a una tarea si quieres que el iPhone te avise.</p>`}
+      ${stepHead(4, ok[3], 'Despertador', wake ? `Te levantas a las ${fmtTime(wake)}` : '¿A qué hora te levantas?')}
+      <div class="wake-row">
+        <span class="wake-ic">${icon('alarm')}</span>
+        <input class="pill-input wake-input" type="time" value="${wakeShown}" data-change="wake-for" data-date="${tk}" aria-label="Hora de despertar">
+        ${wake ? '' : `<button class="capsule primary" data-action="wake-confirm" data-date="${tk}">Listo</button>`}
+      </div>
+      <p class="group-foot" style="margin:12px 2px 0">Si te acuestas a las ${fmtTime(s.nightStart)}, dormirías <b>${fmtDur(sleepMin)}</b> (tu meta es de ${s.sleepGoal} h). La alarma con misión llega muy pronto; por ahora pon también la del iPhone.</p>
     </section>`);
 
   if (!planned) {

@@ -45,7 +45,12 @@ const P = {
   checklist: '<path d="M3.5 6.5l1.5 1.5 3-3M3.5 13l1.5 1.5 3-3M11.5 6.5h9M11.5 13h9M11.5 19h9M4 19h3"/>',
   ellipsis: '<circle cx="5.5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor"/>',
   hand: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13M17 10a1.5 1.5 0 0 1 3 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-2.7l-3.3-5a1.6 1.6 0 0 1 2.6-1.9L8 15"/>',
-  quote: '<path d="M9.5 7H6a1.5 1.5 0 0 0-1.5 1.5V12A1.5 1.5 0 0 0 6 13.5h3.5V14c0 2-1 3-3 3.5M19.5 7H16a1.5 1.5 0 0 0-1.5 1.5V12a1.5 1.5 0 0 0 1.5 1.5h3.5V14c0 2-1 3-3 3.5"/>',
+  'calendar-check': '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8.8 15.2l2.2 2.2 4.3-4.6"/>',
+  book: '<path d="M12 6.5c-1.8-1.4-4.3-2-7.5-2v13.5c3.2 0 5.7.6 7.5 2 1.8-1.4 4.3-2 7.5-2V4.5c-3.2 0-5.7.6-7.5 2z"/><path d="M12 6.5v13.5"/>',
+  dumbbell: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
+  camera: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.5-2.2h5.4L16.2 7h2.3A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.4"/>',
+  alarm: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 1.8M4.5 4.5 2.5 6.5M19.5 4.5l2 2M6 19.5 4.5 21M18 19.5l1.5 1.5"/>',
+  quote:'<path d="M9.5 7H6a1.5 1.5 0 0 0-1.5 1.5V12A1.5 1.5 0 0 0 6 13.5h3.5V14c0 2-1 3-3 3.5M19.5 7H16a1.5 1.5 0 0 0-1.5 1.5V12a1.5 1.5 0 0 0 1.5 1.5h3.5V14c0 2-1 3-3 3.5"/>',
 };
 
 const FILLED = {
@@ -55,7 +60,11 @@ const FILLED = {
   'moon-fill': '<path d="M20.2 14.6A8.6 8.6 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z" fill="currentColor"/>',
   'sun-fill': '<circle cx="12" cy="12" r="4.6" fill="currentColor"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
   'tray-fill': '<path d="M6.2 5h11.6l2.7 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-14A1.5 1.5 0 0 1 3.5 18.5v-5z" fill="currentColor"/><path d="M3.5 13.5h5l1.6 2.6h3.8l1.6-2.6h5" stroke="var(--tab-cut, #fff)"/>',
-  'chart-fill': '<path d="M5 20v-7M12 20V5M19 20v-10" stroke-width="3.4"/>',
+  'book-fill': '<path d="M11.2 6C9.4 4.9 7.1 4.5 4.5 4.5A1 1 0 0 0 3.5 5.5v12.5a1 1 0 0 0 1 1c2.6 0 4.7.4 6.7 1.5zM12.8 6c1.8-1.1 4.1-1.5 6.7-1.5a1 1 0 0 1 1 1v12.5a1 1 0 0 1-1 1c-2.6 0-4.7.4-6.7 1.5z" fill="currentColor" stroke="none"/>',
+  'person-fill': '<circle cx="12" cy="8" r="4.3" fill="currentColor" stroke="none"/><path d="M4 20.2a8 8 0 0 1 16 0c0 .5-.4.8-.8.8H4.8c-.4 0-.8-.3-.8-.8z" fill="currentColor" stroke="none"/>',
+  'calendar-check-fill': '<path d="M6 5h12a2.5 2.5 0 0 1 2.5 2.5V10h-17V7.5A2.5 2.5 0 0 1 6 5z" fill="currentColor" stroke="none"/><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M8.8 15.2l2.2 2.2 4.3-4.6" stroke-width="2.3"/>',
+  'dumbbell-fill': '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11" stroke-width="2.8"/>',
+  'chart-fill':'<path d="M5 20v-7M12 20V5M19 20v-10" stroke-width="3.4"/>',
   'gear-fill': P.gear.replace('<circle cx="12" cy="12" r="3"/>', '<circle cx="12" cy="12" r="3" fill="currentColor"/>'),
 };
 

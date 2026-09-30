@@ -5,13 +5,11 @@ export const GUIDES = {
     title: 'Instalar Rumbo',
     ic: 'iphone',
     tint: 'c-blue',
-    intro: 'Hazlo una sola vez. Rumbo quedará en tu pantalla de inicio y se abrirá como una app, a pantalla completa y sin internet.',
+    intro: 'Hazlo una sola vez. Rumbo quedará en tu pantalla de inicio y se abrirá como una app, a pantalla completa, incluso sin internet.',
     steps: [
       ['Abre Rumbo en Safari', 'Tiene que ser <b>Safari</b>: es el único navegador del iPhone que instala apps web correctamente.'],
       ['Compartir → Añadir a pantalla de inicio', 'Toca el botón <b>Compartir</b> (el cuadrado con la flecha), baja y elige <b>Añadir a pantalla de inicio</b>. Déjala en tu pantalla principal, a la vista.'],
-      ['Crea un calendario “Rumbo”', 'En la app <b>Calendario</b> → Calendarios → Añadir calendario → “Rumbo”. Al importar recordatorios elige ese calendario; si algún día quieres cambiarlos, borras ese calendario y listo.'],
-      ['Instala los recordatorios fijos', 'En Ajustes → <b>Recordatorios fijos</b>. El iPhone te preguntará: elige <b>Añadir todo</b>. Son los avisos de agua, de planear mañana y del modo noche.'],
-      ['Activa las notificaciones del Calendario', 'Ajustes del iPhone → Notificaciones → <b>Calendario</b> → Permitir notificaciones, con sonido y en pantalla bloqueada.'],
+      ['Ábrela siempre desde el ícono', 'La app instalada y Safari guardan tus datos <b>por separado</b>: si anotas algo en Safari, no aparece en el ícono. Usa siempre el ícono de Rumbo.'],
     ],
   },
   block: {

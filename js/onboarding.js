@@ -1,4 +1,4 @@
-// Bienvenida: se muestra la primera vez (o desde Ajustes).
+// Bienvenida: se muestra la primera vez (o desde Perfil › Datos y privacidad).
 import { state, commit } from './store.js';
 import { esc } from './utils.js';
 import { cell, timeField, selectField } from './components.js';
@@ -39,7 +39,7 @@ function slides() {
     <section class="onb-slide">
       <div>
         <h2>Tus horarios</h2>
-        <p class="lead">Puedes cambiarlos cuando quieras en Ajustes.</p>
+        <p class="lead">Puedes cambiarlos cuando quieras en tu Perfil.</p>
         <div class="group icons">
           ${cell({ ic: 'moon-fill', tint: 'c-indigo', label: 'Planear mañana', control: timeField('set-time', s.planTime, 'data-key-set="planTime"') })}
           ${cell({ ic: 'bed', tint: 'c-purple', label: 'Modo noche', control: timeField('set-time', s.nightStart, 'data-key-set="nightStart"') })}
@@ -52,7 +52,7 @@ function slides() {
       <div>
         <div class="onb-logo" style="background:linear-gradient(145deg,#34C759,#30B0C7);display:grid;place-items:center;color:#fff;font-size:64px">${icon('check')}</div>
         <h2>Todo listo${s.name ? `, ${esc(s.name)}` : ''}</h2>
-        <p class="lead">Siguiente paso: instala Rumbo en tu pantalla de inicio y configura los bloqueos. En Ajustes te guío paso a paso.</p>
+        <p class="lead">Siguiente paso: instala Rumbo en tu pantalla de inicio y configura los bloqueos. En tu Perfil, en "Configura tu iPhone", te guío paso a paso.</p>
       </div>
     </section>`;
 }

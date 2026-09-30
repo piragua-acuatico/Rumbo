@@ -2,6 +2,7 @@
 // GitHub Pages lo publica en ~1 minuto y el iPhone se actualiza solo al abrir la app.
 //
 //   node tools/publicar.cjs "qué cambió"
+//   node tools/publicar.cjs --version=2.2.0 "qué cambió"   (para un salto de versión)
 //
 const fs = require('fs');
 const path = require('path');
@@ -35,7 +36,9 @@ catch { fail('No se publicó porque la prueba en navegador encontró problemas.'
 const versionFile = fs.readFileSync(rel('js/version.js'), 'utf8');
 const current = versionFile.match(/VERSION = '(\d+)\.(\d+)\.(\d+)'/);
 if (!current) fail('No encontré la versión en js/version.js');
-const next = `${current[1]}.${current[2]}.${Number(current[3]) + 1}`;
+const forced = process.argv.find(a => a.startsWith('--version='))?.slice(10);
+if (forced && !/^\d+\.\d+\.\d+$/.test(forced)) fail(`Versión inválida: ${forced} (usa algo como 2.2.0)`);
+const next = forced || `${current[1]}.${current[2]}.${Number(current[3]) + 1}`;
 fs.writeFileSync(rel('js/version.js'), versionFile.replace(current[0], `VERSION = '${next}'`));
 
 // 3. Lista de archivos que el service worker guarda para funcionar sin internet.
@@ -48,7 +51,7 @@ sw = sw.replace(/const ASSETS = \[[\s\S]*?\];/, `const ASSETS = [\n${assets.map(
 fs.writeFileSync(rel('sw.js'), sw);
 
 // 4. Guardar y enviar a GitHub.
-const message = process.argv.slice(2).join(' ').trim() || 'Actualización';
+const message = process.argv.slice(2).filter(a => !a.startsWith('--version=')).join(' ').trim() || 'Actualización';
 git('add', '-A');
 try { git('commit', '-m', `Rumbo ${next}: ${message}`); }
 catch { console.log('No había cambios nuevos para guardar.'); }

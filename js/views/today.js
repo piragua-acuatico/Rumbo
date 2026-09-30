@@ -3,6 +3,7 @@ import { state, tasksFor, overdueTasks, ensureRoutines, waterFor, focusFor, wate
 import { todayKey, fmtDateLong, greeting, nowMin, toMin, fromMin, fmtTime, esc, isStandalone, plural } from '../utils.js';
 import { largeTitle, sectionHead, emptyState, taskRow, nowLine, rings, RING_COLORS } from '../components.js';
 import { icon } from '../icons.js';
+import { avatarHTML } from './profile.js';
 
 const liters = ml => (ml / 1000).toLocaleString('es', { maximumFractionDigits: 2 });
 
@@ -46,13 +47,12 @@ export function viewToday() {
   const timed = list.filter(t => t.time);
   const untimed = list.filter(t => !t.time);
   const m = nowMin();
-  const initial = (s.name || 'R').trim().charAt(0).toUpperCase();
 
   const out = [];
   const greet = greeting('');
   const titleHTML = s.name ? `${greet},<br><span class="lt-name">${esc(s.name)}</span>` : greet;
   out.push(largeTitle(titleHTML, fmtDateLong(k),
-    `<button class="avatar" data-action="go" data-tab="ajustes" aria-label="Ajustes">${esc(initial)}</button>`));
+    `<button class="avatar-btn" data-action="go" data-tab="perfil" aria-label="Tu perfil">${avatarHTML()}</button>`));
 
   // Avisos contextuales.
   if (!isStandalone() && !state.hideInstall) {
@@ -68,7 +68,7 @@ export function viewToday() {
   }
   if (m >= toMin(s.planTime) && !state.planned[planTarget()]) {
     out.push(`
-      <button class="banner tappable-card" data-key="b-plan" data-action="go" data-tab="manana" style="--tint: var(--c-indigo)">
+      <button class="banner tappable-card" data-key="b-plan" data-action="go" data-tab="plan" data-seg="manana" style="--tint: var(--c-indigo)">
         <span class="banner-ic">${icon('moon-fill')}</span>
         <span class="banner-text"><b>Es hora de planear mañana</b><p>Cierra el día y deja todo listo en 3 minutos.</p></span>
         <span class="cell-chev">${icon('chevron-right')}</span>
@@ -87,7 +87,7 @@ export function viewToday() {
 
   const waterGoal = s.waterGoalMl;
   out.push(`
-    <section class="card tappable-card" data-key="rings" data-action="go" data-tab="progreso" role="button" tabindex="0" aria-label="Ver progreso">
+    <section class="card tappable-card" data-key="rings" data-action="go" data-tab="perfil/estadisticas" role="button" tabindex="0" aria-label="Ver estadísticas">
       <div class="rings-card">
         ${rings([
           { key: 'tasks', p: list.length ? done / list.length : 0, label: `Tareas ${done} de ${list.length}` },

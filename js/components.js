@@ -2,6 +2,7 @@
 import { esc, fmtTime, fmtDur, fromMin, toMin, relDate, timeParts, todayKey } from './utils.js';
 import { catOf, isCurrent } from './store.js';
 import { icon } from './icons.js';
+import { ui } from './ui.js';
 
 /* ---------- Encabezado grande ---------- */
 export function largeTitle(title, sub = '', trailing = '') {
@@ -13,6 +14,15 @@ export function largeTitle(title, sub = '', trailing = '') {
       </div>
       ${trailing}
     </header>`;
+}
+
+// Subpantalla: botón para volver (a Perfil, o a la pestaña desde la que llegaste) + título grande.
+const BACK_LABEL = { hoy: 'Hoy', plan: 'Plan', diario: 'Diario', crossfit: 'CrossFit' };
+export function subHeader(title, sub = '') {
+  const back = BACK_LABEL[ui.from] || 'Perfil';
+  return `
+    <div class="subnav" data-key="subnav"><button class="back-btn" data-action="back">${icon('chevron-left')}${back}</button></div>
+    ${largeTitle(title, sub)}`;
 }
 
 export function sectionHead(title, right = '', key = '') {

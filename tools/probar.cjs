@@ -85,10 +85,60 @@ async function main() {
       await sleep(wait);
     };
 
-    for (const tab of ['hoy', 'manana', 'pendientes', 'progreso', 'ajustes']) {
+    for (const tab of ['hoy', 'plan', 'diario', 'crossfit', 'perfil']) {
       await click(`#tabs [data-tab="${tab}"]`);
       await check(`Pestaña ${tab}`);
     }
+    // Plan: las dos mitades (ritual y pendientes).
+    await click('#tabs [data-tab="plan"]');
+    await click('[data-action="plan-seg"][data-value="manana"]');
+    await check('Plan › Mañana');
+    await click('[data-action="wake-confirm"]');
+    await click('[data-action="plan-seg"][data-value="pendientes"]');
+    await check('Plan › Pendientes');
+    // Perfil: cada subpantalla y el botón de volver.
+    for (const sub of ['estadisticas', 'agua', 'enfoque', 'sueno', 'planificacion', 'rutinas', 'apariencia', 'iphone', 'datos']) {
+      await click('#tabs [data-tab="perfil"]', 650);
+      await click(`[data-tab="perfil/${sub}"]`, 650);
+      await check(`Perfil › ${sub}`);
+      const title = await js(`document.querySelector('#view .lt-title')?.textContent || ''`);
+      if (!title) problems.push(`Perfil › ${sub}: sin título`);
+    }
+    // Foto de perfil: una imagen generada al vuelo, como si la eligieras de la galería.
+    await click('#tabs [data-tab="perfil"]', 650);
+    await js(`(async () => {
+      const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+      const g = c.getContext('2d'); g.fillStyle = '#5856D6'; g.fillRect(0, 0, 640, 480);
+      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      const dt = new DataTransfer(); dt.items.add(new File([blob], 'yo.png', { type: 'image/png' }));
+      const input = document.getElementById('photoInput'); input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await sleep(600);
+    const photo = await js(`!!document.querySelector('.profile-card img.avatar') && JSON.parse(localStorage.getItem('rumbo.v1')).profile.photo.startsWith('data:image/jpeg')`);
+    if (!photo) problems.push('La foto de perfil no se guardó');
+    await click('[data-tab="perfil/agua"]', 650);
+    await click('#view [data-action="back"]', 650);
+    const route = await js('location.hash');
+    if (route !== '#perfil') problems.push(`El botón volver dejó la ruta en ${route}`);
+    // Desde Hoy a Estadísticas: "volver" regresa a Hoy, no a Perfil.
+    await click('#tabs [data-tab="hoy"]', 650);
+    await click('[data-tab="perfil/estadisticas"]', 700);
+    await click('#view [data-action="back"]', 700);
+    const fromHoy = await js('location.hash');
+    if (fromHoy !== '#hoy') problems.push(`Volver desde Estadísticas (entrando por Hoy) llevó a ${fromHoy}`);
+    // Una copia de seguridad manipulada no puede colar código por la foto ni romper Perfil.
+    const safe = await js(`(async () => {
+      const store = await import('/js/store.js');
+      const evil = JSON.parse(JSON.stringify(store.state));
+      evil.profile = { photo: 'data:image/jpeg;base64,AAAA" onerror="window.__xss=1', since: 1e20 };
+      store.replaceState(evil);
+      await new Promise(r => setTimeout(r, 300));
+      return !window.__xss && store.state.profile.photo === null && store.state.profile.since <= Date.now();
+    })()`);
+    if (!safe) problems.push('Una copia manipulada pasó la validación de la foto de perfil');
+    await click('#tabs [data-tab="perfil"]', 650);
+    await check('Perfil tras restaurar una copia manipulada');
     // Hojas y pantallas especiales.
     await click('#tabs [data-tab="hoy"]');
     await click('#fab', 600);
@@ -99,16 +149,22 @@ async function main() {
     await click('.sheet [data-action="sheet-close"]', 700);
     await click('[data-action="focus-open"]', 600);
     await click('.focus-top [data-action="focus-stop"]', 600);
-    await click('#tabs [data-tab="ajustes"]');
+    await click('#tabs [data-tab="perfil"]', 650);
+    await click('[data-tab="perfil/iphone"]', 650);
     await click('[data-guide="block"]', 600);
     await click('.sheet [data-action="sheet-close"]', 700);
+    await click('#tabs [data-tab="perfil"]', 650);
+    await click('[data-tab="perfil/rutinas"]', 650);
     await click('[data-action="routine"][data-rid=""]', 600);
     await click('.sheet [data-action="sheet-close"]', 700);
-    await click('[data-action="ics-fixed"]', 600);
+    await click('#tabs [data-tab="perfil"]', 650);
+    await click('[data-tab="perfil/datos"]', 650);
+    await click('[data-action="export"]', 600);
     await click('.sheet [data-action="sheet-close"]', 700);
-    await click('#tabs [data-tab="progreso"]');
+    await click('#tabs [data-tab="perfil"]', 650);
+    await click('[data-tab="perfil/estadisticas"]', 650);
     await click('[data-action="range"][data-value="30"]');
-    await check('Progreso (mes)');
+    await check('Estadísticas (mes)');
   } catch (err) {
     problems.push(`La prueba no pudo correr: ${err.message}`);
   } finally {

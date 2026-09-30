@@ -1,7 +1,7 @@
-// Vista "Pendientes": todo lo que aún no tiene día.
+// Plan › Pendientes: todo lo que aún no tiene día, y lo de los próximos días.
 import { state, inboxTasks, byTime, CATEGORIES } from '../store.js';
-import { plural, todayKey, addDays } from '../utils.js';
-import { largeTitle, sectionHead, emptyState, taskRow } from '../components.js';
+import { todayKey, addDays } from '../utils.js';
+import { sectionHead, emptyState, taskRow } from '../components.js';
 import { icon } from '../icons.js';
 import { ui } from '../ui.js';
 
@@ -16,7 +16,6 @@ export function viewInbox() {
   const shown = ui.inboxFilter === 'all' ? open : open.filter(t => t.category === ui.inboxFilter);
 
   const out = [];
-  out.push(largeTitle('Pendientes', open.length ? plural(open.length, 'por hacer', 'por hacer') : 'Sin fecha asignada'));
 
   if (!open.length && !closed.length && !upcoming.length) {
     out.push(`<div class="list" data-key="l-empty">${emptyState({

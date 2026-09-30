@@ -39,6 +39,8 @@ export const DEFAULT_SETTINGS = {
   nightEnd: '06:00',
   planTime: '21:30',
   leadMin: 5,
+  wakeTime: '07:00',
+  sleepGoal: 8,
 };
 
 function fresh() {
@@ -52,10 +54,11 @@ function fresh() {
     focusLog: {},     // fecha: minutos
     journal: {},      // fecha: {mood, note}
     planned: {},      // fecha planeada: timestamp de cuando se cerró el ritual
-    exported: {},     // fecha: true si se enviaron sus recordatorios al Calendario
+    wakeFor: {},      // fecha: hora de despertar elegida en el ritual
     guide: {},
     hideInstall: false,
     focus: null,      // {taskId,title,total,endsAt,remaining,running,finished}
+    profile: { photo: null, since: Date.now() },
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -107,7 +110,17 @@ function cleanSettings(x) {
     nightMode: x.nightMode === undefined ? d.nightMode : !!x.nightMode,
     nightStart: t('nightStart'), nightEnd: t('nightEnd'), planTime: t('planTime'),
     leadMin: [0, 5, 10, 15, 30].includes(Number(x.leadMin)) ? Number(x.leadMin) : d.leadMin,
+    wakeTime: t('wakeTime'),
+    sleepGoal: num(x.sleepGoal, 5, 11, d.sleepGoal),
   };
+}
+// Foto de perfil: una miniatura JPEG pequeña (se genera en el teléfono).
+function cleanProfile(p, tasks) {
+  p = obj(p);
+  const photo = typeof p.photo === 'string' && p.photo.length < 300000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(p.photo) ? p.photo : null;
+  const oldest = tasks.reduce((min, t) => Math.min(min, t.createdAt || Infinity), Infinity);
+  const since = num(p.since, 0, Date.now(), Number.isFinite(oldest) ? Math.min(oldest, Date.now()) : Date.now());
+  return { photo, since };
 }
 function cleanFocus(f) {
   if (!f || typeof f !== 'object') return null;
@@ -137,10 +150,14 @@ function migrate(data) {
   s.focusLog = byDate(data.focusLog, v => num(v, 0, 1440, null));
   s.journal = byDate(data.journal, j => ({ mood: MOODS.some(m => m.v === obj(j).mood) ? obj(j).mood : null, note: str(obj(j).note, 2000) }));
   s.planned = byDate(data.planned, v => Number(v) || Date.now());
-  s.exported = byDate(data.exported, () => true);
+  s.wakeFor = byDate(data.wakeFor, v => time(v));
   s.guide = Object.fromEntries(Object.entries(obj(data.guide)).filter(([k]) => /^[a-z]+\.\d+$/.test(k)).map(([k, v]) => [k, !!v]));
+  // Hasta la 2.1 la guía de instalación tenía pasos del Calendario (del 3 en adelante):
+  // se descartan para que no marquen como hechos los pasos nuevos.
+  if ('exported' in data) for (const k of ['install.2', 'install.3', 'install.4']) delete s.guide[k];
   s.hideInstall = !!data.hideInstall;
   s.focus = cleanFocus(data.focus);
+  s.profile = cleanProfile(data.profile, s.tasks);
   return s;
 }
 
@@ -191,7 +208,7 @@ export function resetState() {
 export function prune() {
   const limit = addDays(todayKey(), -90);
   state.tasks = state.tasks.filter(t => !(t.done && t.date && t.date < limit));
-  for (const bag of [state.water, state.focusLog, state.planned, state.exported]) {
+  for (const bag of [state.water, state.focusLog, state.planned, state.wakeFor]) {
     for (const k of Object.keys(bag)) if (k < addDays(todayKey(), -180)) delete bag[k];
   }
   for (const k of Object.keys(state.routineSkips)) if (k.split('|')[1] < limit) delete state.routineSkips[k];

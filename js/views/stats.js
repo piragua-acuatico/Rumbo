@@ -1,7 +1,7 @@
-// Vista "Progreso": racha, resumen y gráficos de los últimos días.
+// Perfil › Estadísticas: racha, resumen y gráficos de los últimos días.
 import { state, planningStreak, MOODS } from '../store.js';
 import { todayKey, addDays, dayLetter, parseKey, fmtDateLong, fmtDur, plural, esc, relDate } from '../utils.js';
-import { largeTitle, segmented, sectionHead } from '../components.js';
+import { subHeader, segmented, sectionHead } from '../components.js';
 import { icon } from '../icons.js';
 import { ui } from '../ui.js';
 
@@ -34,7 +34,7 @@ function barChart(id, keys, values, { color, goal = null, fmt = v => v, labelEve
   return `<div class="bars${keys.length > 7 ? ' dense' : ''}" style="--bar-c:${color}">${goalLine}${bars}</div>`;
 }
 
-export function viewProgress() {
+export function viewStats() {
   const s = state.settings;
   const n = ui.range;
   const keys = days(n);
@@ -54,7 +54,7 @@ export function viewProgress() {
   const streak = planningStreak();
 
   const out = [];
-  out.push(largeTitle('Progreso', n === 7 ? 'Últimos 7 días' : 'Últimos 30 días'));
+  out.push(subHeader('Estadísticas', n === 7 ? 'Últimos 7 días' : 'Últimos 30 días'));
   out.push(`<div data-key="range" style="margin-bottom:14px">${segmented('range', [{ value: 7, label: 'Semana' }, { value: 30, label: 'Mes' }], n)}</div>`);
 
   // Racha

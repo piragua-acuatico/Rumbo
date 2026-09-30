@@ -1,7 +1,7 @@
 // Guarda la app en el teléfono para que abra sin internet y se actualice sola.
 // VERSION la cambia `node tools/publicar.cjs` en cada publicación: al cambiar este
 // archivo, el iPhone detecta la versión nueva y la instala.
-const VERSION = '2.1.2';
+const VERSION = '2.2.0';
 const CACHE = `rumbo-${VERSION}`;
 const ASSETS = [
   './',
@@ -16,7 +16,6 @@ const ASSETS = [
   './js/guides.js',
   './js/handlers.js',
   './js/icons.js',
-  './js/ics.js',
   './js/morph.js',
   './js/night.js',
   './js/onboarding.js',
@@ -29,11 +28,14 @@ const ASSETS = [
   './js/update.js',
   './js/utils.js',
   './js/version.js',
+  './js/views/crossfit.js',
+  './js/views/diary.js',
   './js/views/inbox.js',
-  './js/views/progress.js',
-  './js/views/settings.js',
+  './js/views/plan.js',
+  './js/views/profile.js',
+  './js/views/ritual.js',
+  './js/views/stats.js',
   './js/views/today.js',
-  './js/views/tomorrow.js',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

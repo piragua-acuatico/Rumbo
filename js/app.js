@@ -1,9 +1,9 @@
-// Rumbo — arranque, render y eventos globales.
+// Rumbo — arranque, navegación, render y eventos globales.
 import { state, subscribe, prune, getTask, tasksFor, waterSlots, planTarget, loadProblem } from './store.js';
-import { todayKey, nowMin, toMin, fmtTime, esc } from './utils.js';
+import { todayKey, nowMin, toMin, fmtTime, esc, reducedMotion } from './utils.js';
 import { morph } from './morph.js';
 import { run } from './actions.js';
-import { ui } from './ui.js';
+import { ui, parseRoute } from './ui.js';
 import { icon } from './icons.js';
 import { emptyState } from './components.js';
 import { toast, autosize } from './fx.js';
@@ -15,17 +15,17 @@ import { render as renderFocus } from './focus.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
 import { viewToday } from './views/today.js';
-import { viewTomorrow } from './views/tomorrow.js';
-import { viewInbox } from './views/inbox.js';
-import { viewProgress } from './views/progress.js';
-import { viewSettings } from './views/settings.js';
+import { viewPlan } from './views/plan.js';
+import { viewDiary } from './views/diary.js';
+import { viewCrossfit } from './views/crossfit.js';
+import { viewProfile, PROFILE_PAGES } from './views/profile.js';
 
 const $ = s => document.querySelector(s);
-const VIEWS = { hoy: viewToday, manana: viewTomorrow, pendientes: viewInbox, progreso: viewProgress, ajustes: viewSettings };
-const TITLES = { hoy: 'Hoy', manana: 'Mañana', pendientes: 'Pendientes', progreso: 'Progreso', ajustes: 'Ajustes' };
+const VIEWS = { hoy: viewToday, plan: viewPlan, diario: viewDiary, crossfit: viewCrossfit, perfil: viewProfile };
+const TITLES = { hoy: 'Hoy', plan: 'Plan', diario: 'Diario', crossfit: 'CrossFit', perfil: 'Perfil' };
 const TAB_ICONS = {
-  hoy: ['sun', 'sun-fill'], manana: ['moon', 'moon-fill'], pendientes: ['tray', 'tray'],
-  progreso: ['chart', 'chart-fill'], ajustes: ['gear', 'gear-fill'],
+  hoy: ['sun', 'sun-fill'], plan: ['calendar-check', 'calendar-check-fill'], diario: ['book', 'book-fill'],
+  crossfit: ['dumbbell', 'dumbbell-fill'], perfil: ['person', 'person-fill'],
 };
 
 /* ---------- Tema ---------- */
@@ -52,9 +52,9 @@ function updateTabbar() {
   tabs.querySelectorAll('[data-tab]').forEach(b => {
     if (b.dataset.tab === ui.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
-  // Punto rojo en "Mañana" cuando ya es hora de planear.
+  // Punto rojo en "Plan" cuando ya es hora de planear.
   const needsPlan = nowMin() >= toMin(state.settings.planTime) && !state.planned[planTarget()];
-  const btn = tabs.querySelector('[data-tab="manana"]');
+  const btn = tabs.querySelector('[data-tab="plan"]');
   const badge = btn.querySelector('.tab-badge');
   if (needsPlan && !badge) btn.insertAdjacentHTML('beforeend', '<span class="tab-badge dot" aria-label="Pendiente de planear"></span>');
   if (!needsPlan && badge) badge.remove();
@@ -90,12 +90,17 @@ function syncLive(root) {
 }
 
 /* ---------- Render ---------- */
-let lastTab = null;
+const routeKey = () => `${ui.tab}/${ui.sub || ''}`;
+const page = () => (ui.tab === 'perfil' && ui.sub && PROFILE_PAGES[ui.sub]) || null;
+
+let lastRoute = null;
+let enterAnim = 'view-enter';
 function render() {
+  if (ui.sub && !page()) ui.sub = null;
   const view = $('#view');
   let html;
   try {
-    html = VIEWS[ui.tab]();
+    html = page() ? page()[1]() : VIEWS[ui.tab]();
   } catch (err) {
     // Si una pantalla falla, se muestra un aviso en lugar de quedar en blanco.
     console.error(err);
@@ -105,38 +110,108 @@ function render() {
       key: 'view-error-empty',
     })}</div>`;
   }
-  if (lastTab !== ui.tab) {
+  if (lastRoute !== routeKey()) {
     view.innerHTML = html;
-    view.classList.remove('view-enter');
+    view.classList.remove('view-enter', 'view-push', 'view-pop');
     void view.offsetWidth;
-    view.classList.add('view-enter');
-    lastTab = ui.tab;
+    if (enterAnim) view.classList.add(enterAnim);
+    lastRoute = routeKey();
   } else {
     morph(view, html);
   }
   syncLive(view);
   autosize(view);
-  $('#navTitle').textContent = TITLES[ui.tab];
+  $('#navTitle').textContent = page() ? page()[0] : TITLES[ui.tab];
+  $('#navBack').hidden = !ui.sub;
+  $('#navBack').lastChild.textContent = TITLES[ui.from] || 'Perfil';
   updateTabbar();
   renderNight();
   renderFocus();
   refreshSheet();
 }
 
-function go(tab) {
-  if (!VIEWS[tab]) return;
-  if (tab === ui.tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-  ui.scroll[ui.tab] = scrollY;
-  ui.tab = tab;
-  history.replaceState(null, '', `#${tab}`);
-  render();
-  window.scrollTo(0, ui.scroll[tab] || 0);
-  onScroll();
+/* ---------- Navegación ----------
+   go('perfil/agua') entra a una subpantalla (desliza desde la derecha),
+   back() vuelve (desliza hacia la derecha) y cambiar de pestaña hace un fundido. */
+let navSeq = 0;
+function navigate(next, dir) {
+  ui.scroll[routeKey()] = scrollY;
+  // Una subpantalla que no existe (o fuera del Perfil) lleva a la raíz de la pestaña.
+  const tab = next.tab || ui.tab;
+  if (next.sub && !(tab === 'perfil' && PROFILE_PAGES[next.sub])) next.sub = null;
+  const seq = ++navSeq;
+  const update = () => {
+    Object.assign(ui, next);
+    history.replaceState(null, '', `#${ui.tab}${ui.sub ? `/${ui.sub}` : ''}`);
+    render();
+    window.scrollTo(0, dir === 'push' ? 0 : ui.scroll[routeKey()] || 0);
+    onScroll();
+  };
+  const root = document.documentElement;
+  // Con View Transitions (Safari 18+) la pantalla vieja y la nueva se deslizan juntas.
+  if (dir !== 'tab' && document.startViewTransition && !reducedMotion()) {
+    enterAnim = null;
+    root.classList.add(`nav-${dir}`);
+    const t = document.startViewTransition(update);
+    // Si otra navegación empezó mientras tanto, esa limpia lo suyo.
+    t.finished.finally(() => {
+      if (seq !== navSeq) return;
+      root.classList.remove('nav-push', 'nav-pop');
+      enterAnim = 'view-enter';
+    });
+  } else {
+    root.classList.remove('nav-push', 'nav-pop');
+    enterAnim = dir === 'tab' ? 'view-enter' : `view-${dir}`;
+    update();
+    enterAnim = 'view-enter';
+  }
+}
+
+function go(target, { seg } = {}) {
+  const r = parseRoute(target);
+  if (seg) r.planSeg = seg;
+  const sameTab = r.tab === ui.tab;
+  if (sameTab && r.sub === ui.sub) {
+    if (r.planSeg && r.planSeg !== ui.planSeg) { ui.planSeg = r.planSeg; render(); }
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const next = { tab: r.tab, sub: r.sub };
+  // Al entrar al Plan desde otra pestaña se vuelve a sugerir según la hora (ritual de noche, pendientes de día).
+  if (r.planSeg) next.planSeg = r.planSeg;
+  else if (r.tab === 'plan' && !sameTab) next.planSeg = null;
+  // Tocar la pestaña activa estando en una subpantalla vuelve al inicio de la sección.
+  const dir = r.sub && (!sameTab || !ui.sub) ? 'push' : sameTab && !r.sub ? 'pop' : 'tab';
+  // Si se entra a una subpantalla desde otra pestaña, "volver" regresa a esa pestaña.
+  next.from = dir === 'push' && !sameTab ? ui.tab : r.sub ? ui.from : null;
+  navigate(next, dir);
+}
+
+function back() {
+  if (!ui.sub) return;
+  if (ui.from) navigate({ tab: ui.from, sub: null, from: null }, 'pop');
+  else navigate({ sub: null }, 'pop');
 }
 
 function onScroll() {
   document.body.classList.toggle('scrolled', scrollY > 52);
 }
+
+// Deslizar desde el borde izquierdo para volver, como en iOS.
+let edge = null;
+const overlayOpen = () => sheetOpen() || !!$('.alert-wrap') || ['focus', 'night', 'onboarding'].some(id => !$(`#${id}`).hidden);
+document.addEventListener('pointerdown', e => {
+  const onPage = e.target.closest?.('#view, .navbar');
+  edge = ui.sub && e.clientX < 24 && onPage && !overlayOpen() ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null;
+}, { passive: true });
+document.addEventListener('pointermove', e => {
+  if (!edge || e.pointerId !== edge.id) return;
+  const dx = e.clientX - edge.x, dy = Math.abs(e.clientY - edge.y);
+  if (dy > 50) edge = null;
+  else if (dx > 70) { edge = null; back(); }
+}, { passive: true });
+document.addEventListener('pointerup', () => { edge = null; }, { passive: true });
+
 
 /* ---------- Avisos con la app abierta ---------- */
 const fired = new Set(JSON.parse(sessionStorage.getItem('rumbo.fired') || '[]'));
@@ -242,13 +317,13 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => re
 /* ---------- Arranque ---------- */
 prune();
 applyTheme();
-registerHandlers({ go, render, applyTheme });
+registerHandlers({ go, back, render, applyTheme });
 initSwipe(id => { const t = getTask(id); if (t) completeTask(t, null); });
 subscribe(render);
 buildTabbar();
 render();
 if (!state.onboarded) openOnboarding(); else morningBrief();
-if (loadProblem) toast('No se pudieron leer tus datos', { sub: 'Guardé una copia; restaura un respaldo desde Ajustes', icon: 'xmark', tint: 'c-red', duration: 9000 });
+if (loadProblem) toast('No se pudieron leer tus datos', { sub: 'Guardé una copia; restaura un respaldo desde tu Perfil', icon: 'xmark', tint: 'c-red', duration: 9000 });
 setInterval(tick, 10000);
 setTimeout(tick, 1200);
 
