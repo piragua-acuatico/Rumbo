@@ -14,6 +14,7 @@ import { renderNight, isNight } from './night.js';
 import { render as renderFocus } from './focus.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
+import { scheduleSync, syncPush, pushStatus, updateBadge, whenPushReady } from './push.js';
 import { viewToday } from './views/today.js';
 import { viewPlan } from './views/plan.js';
 import { viewDiary } from './views/diary.js';
@@ -128,6 +129,7 @@ function render() {
   renderNight();
   renderFocus();
   refreshSheet();
+  updateBadge();
 }
 
 /* ---------- Navegación ----------
@@ -230,7 +232,8 @@ function tick() {
     lastMinute = m; lastDay = k; lastNight = night;
     render();
   }
-  if (night || !state.onboarded) return;
+  // Con notificaciones reales activas, los avisos llegan por el iPhone: no se duplican aquí.
+  if (night || !state.onboarded || pushStatus() === 'on') return;
   const lead = Number(state.settings.leadMin) || 0;
   for (const t of tasksFor(k)) {
     if (t.done || !t.time) continue;
@@ -311,7 +314,7 @@ document.addEventListener('submit', e => {
   run(`submit:${name}`, e.target, e);
 });
 addEventListener('scroll', onScroll, { passive: true });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); syncPush(); } });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => render());
 
 /* ---------- Arranque ---------- */
@@ -320,6 +323,7 @@ applyTheme();
 registerHandlers({ go, back, render, applyTheme });
 initSwipe(id => { const t = getTask(id); if (t) completeTask(t, null); });
 subscribe(render);
+subscribe(scheduleSync);
 buildTabbar();
 render();
 if (!state.onboarded) openOnboarding(); else morningBrief();
@@ -328,3 +332,5 @@ setInterval(tick, 10000);
 setTimeout(tick, 1200);
 
 initUpdates();
+syncPush();
+whenPushReady().then(render); // habilita el botón "Activar notificaciones"

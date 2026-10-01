@@ -1,0 +1,14 @@
+{
+  "name": "rumbo-avisos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/webpush.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "logs": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "4.145.0"
+  }
+}

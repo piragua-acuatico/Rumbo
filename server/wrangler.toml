@@ -1,0 +1,27 @@
+# Configuración del servidor de avisos de Rumbo (Cloudflare Worker).
+name = "rumbo-avisos"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Cada minuto revisa si hay avisos que enviar.
+[triggers]
+crons = ["* * * * *"]
+
+# Base de datos donde se guardan las suscripciones y los avisos programados.
+# El id lo da Cloudflare al crear la base (paso 3 de la guía).
+[[d1_databases]]
+binding = "DB"
+database_name = "rumbo-avisos"
+database_id = "a7fe954b-8ab8-49b9-a206-3088d9634f9e"
+
+[vars]
+# Clave pública VAPID (la privada es un secreto: se guarda con "wrangler secret put").
+VAPID_PUBLIC_KEY = "BJwtVmk1SVAZdAgGIcmkt8z6Ppzl3e8oPQg68EdGrvw1FSFRoX5zYEAo1I24G1i2qZ-tkEt3aIUiUcRVGBRUfqo"
+# Quién envía los avisos: Apple exige una URL o un correo.
+VAPID_SUBJECT = "https://piragua-acuatico.github.io/Rumbo/"
+# Solo estas páginas pueden hablar con el servidor.
+ALLOWED_ORIGINS = "https://piragua-acuatico.github.io,http://localhost:5173"
+
+# Registros visibles en el panel de Cloudflare.
+[observability]
+enabled = true

@@ -17,6 +17,7 @@ import { openFocus, focusAction } from './focus.js';
 import { openOnboarding, onbNext, onbBack } from './onboarding.js';
 import { nightPlanDate, isNightTime } from './night.js';
 import { GUIDES } from './guides.js';
+import { enablePush, disablePush, testPush } from './push.js';
 
 const taskOf = el => getTask(el.closest('[data-id]')?.dataset.id);
 const rowOf = el => el.closest('.row');
@@ -378,6 +379,51 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     const input = el.closest('.wake-row')?.querySelector('input');
     state.wakeFor[el.dataset.date] = input?.value || state.settings.wakeTime;
     haptic('success');
+    commit();
+  });
+
+  /* ---------- Notificaciones ---------- */
+  on('notify-enable', el => {
+    // Sin "await" antes de enablePush: iOS solo muestra el permiso si sale directo del toque.
+    const field = document.getElementById('pairCode');
+    if (field && !field.value.trim()) {
+      field.focus();
+      toast('Escribe el código de emparejamiento', { sub: 'Es el que guardaste en Cloudflare', icon: 'lock', tint: 'c-orange' });
+      return;
+    }
+    el.disabled = true;
+    enablePush(field?.value).then(() => {
+      haptic('success');
+      toast('Notificaciones activadas', { sub: 'Prueba con "Enviar un aviso de prueba"', icon: 'bell', tint: 'c-green' });
+    }).catch(err => {
+      const denied = 'Notification' in window && Notification.permission === 'denied';
+      const badCode = err?.message === 'código';
+      toast(denied ? 'Permiso denegado' : badCode ? 'Código incorrecto' : 'No se pudieron activar', {
+        sub: denied ? 'Actívalas en Ajustes del iPhone › Notificaciones › Rumbo' : badCode ? 'Revisa el código de emparejamiento' : 'Revisa tu conexión e inténtalo de nuevo',
+        icon: 'xmark', tint: 'c-red', duration: 7000,
+      });
+      console.error(err);
+    }).finally(() => render());
+  });
+  on('notify-test', async el => {
+    el.disabled = true;
+    const ok = await testPush().catch(() => false);
+    el.disabled = false;
+    toast(ok ? 'Aviso enviado' : 'No se pudo enviar', { sub: ok ? 'Debería llegarte en unos segundos' : 'Revisa tu conexión', icon: ok ? 'check' : 'xmark', tint: ok ? 'c-green' : 'c-red' });
+  });
+  on('notify-disable', async () => {
+    const i = await alertDialog({
+      title: '¿Desactivar las notificaciones?', message: 'Este iPhone dejará de recibir los avisos de Rumbo.',
+      actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Desactivar', style: 'destructive' }],
+    });
+    if (i !== 1) return;
+    await disablePush();
+    render();
+  });
+  on('notify-toggle', el => {
+    const k = el.dataset.k;
+    state.settings.notify[k] = !state.settings.notify[k];
+    haptic();
     commit();
   });
 

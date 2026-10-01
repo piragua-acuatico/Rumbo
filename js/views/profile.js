@@ -7,6 +7,7 @@ import { icon } from '../icons.js';
 import { GUIDES } from '../guides.js';
 import { VERSION as APP_VERSION } from '../version.js';
 import { viewStats } from './stats.js';
+import { pushStatus, pushInfo, pushReady, hasPairCode } from '../push.js';
 
 const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 const guideDone = id => GUIDES[id].steps.filter((_, i) => state.guide[`${id}.${i}`]).length;
@@ -54,6 +55,11 @@ export function viewProfile() {
       ${cell({ ic: 'chart', tint: 'c-pink', label: 'Estadísticas', sub: 'Racha, tareas, agua, enfoque y ánimo', action: 'go', attrs: go('estadisticas'), chevron: true })}
     </section>
 
+    <h2 class="sec-h small" data-key="h-notify">Avisos</h2>
+    <section class="group icons" data-key="g-notify">
+      ${cell({ ic: 'bell', tint: 'c-red', label: 'Notificaciones', value: NOTIFY_LABEL[pushStatus()], action: 'go', attrs: go('notificaciones'), chevron: true })}
+    </section>
+
     <h2 class="sec-h small" data-key="h-hab">Hábitos</h2>
     <section class="group icons" data-key="g-hab">
       ${cell({ ic: 'drop-fill', tint: 'c-blue', label: 'Agua', value: `${liters(s.waterGoalMl)} L`, action: 'go', attrs: go('agua'), chevron: true })}
@@ -79,6 +85,62 @@ export function viewProfile() {
 /* =========================================================
    Subpantallas
    ========================================================= */
+const NOTIFY_LABEL = { on: 'Activadas', off: 'Desactivadas', denied: 'Bloqueadas', 'needs-install': 'Instala la app', unsupported: 'No disponibles', 'no-server': 'Muy pronto' };
+
+function viewNotifications() {
+  const s = state.settings;
+  const st = pushStatus();
+  const inf = pushInfo();
+  const every = { 60: '1 hora', 90: '1 h 30 min', 120: '2 horas', 180: '3 horas' }[s.waterEvery];
+  const nightWarn = fmtTime(fromMin(toMin(s.nightStart) - 15));
+  const synced = inf.lastSync ? new Intl.DateTimeFormat('es', { hour: 'numeric', minute: '2-digit' }).format(new Date(inf.lastSync)) : '';
+
+  const hero = {
+    on: `
+      <section class="card notify-hero ok" data-key="n-hero">
+        <span class="notify-ic">${icon('bell')}</span>
+        <h2>Notificaciones activadas</h2>
+        <p>${inf.count ? `${plural(inf.count, 'aviso programado', 'avisos programados')} para los próximos 7 días` : 'Preparando tus avisos…'}${synced ? ` · actualizado a las ${synced}` : ''}</p>
+        <button class="btn tinted block" data-action="notify-test">${icon('sparkles')}Enviar un aviso de prueba</button>
+      </section>`,
+    off: `
+      <section class="card notify-hero" data-key="n-hero">
+        <span class="notify-ic">${icon('bell')}</span>
+        <h2>${inf.lost ? 'Notificaciones desconectadas' : 'Que Rumbo te avise'}</h2>
+        <p>${inf.lost
+          ? 'El servidor dejó de reconocer este iPhone (pasa si Apple renueva el permiso o si no abres Rumbo en un mes). Vuelve a activarlas y listo.'
+          : 'Agua, tus tareas 5 minutos antes, la hora de planear y más. Llegan aunque la app esté cerrada y el iPhone bloqueado.'}</p>
+        ${hasPairCode() ? '' : `<input class="pair-input" id="pairCode" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64" placeholder="Código de emparejamiento" aria-label="Código de emparejamiento" enterkeyhint="done">`}
+        <button class="btn primary block" data-action="notify-enable"${pushReady() ? '' : ' disabled'}>${icon('bell')}${inf.lost ? 'Reactivar notificaciones' : 'Activar notificaciones'}</button>
+      </section>`,
+    denied: `
+      <p class="callout" data-key="n-hero">${icon('bell')}<span><b>Las notificaciones están bloqueadas.</b> Para activarlas ve a <b>Ajustes del iPhone › Notificaciones › Rumbo</b> y enciende "Permitir notificaciones". Luego vuelve aquí.</span></p>`,
+    'needs-install': `
+      <p class="callout" data-key="n-hero">${icon('iphone')}<span><b>Primero instala Rumbo en tu pantalla de inicio.</b> El iPhone solo permite notificaciones a las apps instaladas. <button class="link-btn" data-action="guide" data-guide="install">Ver cómo</button></span></p>`,
+    unsupported: `<p class="callout" data-key="n-hero">${icon('bell')}<span>Este navegador no permite notificaciones. Abre Rumbo desde el ícono en tu iPhone.</span></p>`,
+    'no-server': `
+      <section class="card soon-card" data-key="n-hero" style="--tint: var(--c-red)">
+        <span class="soon-ic">${icon('bell')}</span>
+        <div><b>Casi listo</b><p>Falta conectar el servidor de avisos. En cuanto esté, aquí aparecerá el botón para activarlos.</p></div>
+      </section>`,
+  }[st];
+
+  const toggle = (k, ic, tint, label, sub) => cell({ ic, tint, label, sub, control: toggleSwitch('notify-toggle', s.notify[k], `data-k="${k}"`, label) });
+  return `
+    ${subHeader('Notificaciones', NOTIFY_LABEL[st])}
+    ${hero}
+    <h2 class="sec-h small" data-key="h-ntypes">Qué te avisamos</h2>
+    <section class="group icons" data-key="g-ntypes">
+      ${toggle('water', 'drop-fill', 'c-blue', 'Agua', `Cada ${every}, de ${fmtTime(s.waterStart)} a ${fmtTime(s.waterEnd)}`)}
+      ${toggle('tasks', 'clock', 'c-red', 'Tareas', Number(s.leadMin) ? `${s.leadMin} min antes de cada tarea con hora` : 'A la hora de cada tarea')}
+      ${toggle('plan', 'moon-fill', 'c-indigo', 'Planear mañana', `A las ${fmtTime(s.planTime)}, si aún no lo hiciste`)}
+      ${toggle('night', 'bed', 'c-purple', 'Modo noche', `15 min antes, a las ${nightWarn}`)}
+      ${toggle('morning', 'sun-fill', 'c-orange', 'Buenos días', `A tu hora de despertar, con el resumen del día`)}
+      ${toggle('focus', 'timer', 'c-green', 'Fin del enfoque', 'Cuando termina una sesión')}
+    </section>
+    <p class="group-foot" data-key="f-notify">${icon('lock')} El título de tus tareas viaja <b>cifrado</b>: el servidor guarda un texto que no puede leer, y solo tu iPhone lo descifra al mostrar el aviso.</p>
+    ${st === 'on' ? `<section class="group" data-key="g-noff">${cell({ label: 'Desactivar en este iPhone', action: 'notify-disable', danger: true })}</section>` : ''}`;
+}
 function viewWater() {
   const s = state.settings;
   return `
@@ -205,6 +267,7 @@ function viewData() {
 // Subpantallas del perfil: ruta → [título en la barra, vista].
 export const PROFILE_PAGES = {
   estadisticas: ['Estadísticas', viewStats],
+  notificaciones: ['Notificaciones', viewNotifications],
   agua: ['Agua', viewWater],
   enfoque: ['Enfoque', viewFocusSettings],
   sueno: ['Sueño', viewSleep],

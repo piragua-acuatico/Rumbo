@@ -1,3 +1,8 @@
 .claude/
 node_modules/
 *.log
+
+# Servidor de avisos
+server/.wrangler/
+server/.dev.vars
+server/.vapid-privada.json

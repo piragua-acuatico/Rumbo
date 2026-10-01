@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   leadMin: 5,
   wakeTime: '07:00',
   sleepGoal: 8,
+  // Qué avisos se envían como notificación.
+  notify: { water: true, tasks: true, plan: true, night: true, morning: true, focus: true },
 };
 
 function fresh() {
@@ -59,7 +61,7 @@ function fresh() {
     hideInstall: false,
     focus: null,      // {taskId,title,total,endsAt,remaining,running,finished}
     profile: { photo: null, since: Date.now() },
-    settings: { ...DEFAULT_SETTINGS },
+    settings: { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify } },
   };
 }
 
@@ -112,6 +114,7 @@ function cleanSettings(x) {
     leadMin: [0, 5, 10, 15, 30].includes(Number(x.leadMin)) ? Number(x.leadMin) : d.leadMin,
     wakeTime: t('wakeTime'),
     sleepGoal: num(x.sleepGoal, 5, 11, d.sleepGoal),
+    notify: Object.fromEntries(Object.keys(d.notify).map(k => [k, obj(x.notify)[k] === undefined ? d.notify[k] : !!obj(x.notify)[k]])),
   };
 }
 // Foto de perfil: una miniatura JPEG pequeña (se genera en el teléfono).

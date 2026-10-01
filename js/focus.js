@@ -4,6 +4,7 @@ import { esc, fmtClock, keyOf } from './utils.js';
 import { morph } from './morph.js';
 import { icon } from './icons.js';
 import { haptic, confetti, toast } from './fx.js';
+import { scheduleSync } from './push.js';
 
 let visible = false;
 let lastSecond = -1;
@@ -41,6 +42,7 @@ function start() {
   x.running = true;
   haptic('heavy');
   save();
+  scheduleSync(); // programa el aviso de "terminó tu sesión"
   render();
 }
 function pause() {
@@ -50,6 +52,7 @@ function pause() {
   x.endsAt = null;
   haptic();
   save();
+  scheduleSync(); // en pausa no hay fin que avisar
   render();
 }
 function addFive() {
@@ -58,6 +61,7 @@ function addFive() {
   x.total += 300;
   haptic();
   save();
+  scheduleSync(); // el fin se movió 5 minutos
   render();
 }
 function setPreset(min) {

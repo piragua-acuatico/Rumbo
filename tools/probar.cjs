@@ -97,7 +97,7 @@ async function main() {
     await click('[data-action="plan-seg"][data-value="pendientes"]');
     await check('Plan › Pendientes');
     // Perfil: cada subpantalla y el botón de volver.
-    for (const sub of ['estadisticas', 'agua', 'enfoque', 'sueno', 'planificacion', 'rutinas', 'apariencia', 'iphone', 'datos']) {
+    for (const sub of ['estadisticas', 'notificaciones', 'agua', 'enfoque', 'sueno', 'planificacion', 'rutinas', 'apariencia', 'iphone', 'datos']) {
       await click('#tabs [data-tab="perfil"]', 650);
       await click(`[data-tab="perfil/${sub}"]`, 650);
       await check(`Perfil › ${sub}`);
