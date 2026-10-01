@@ -71,14 +71,19 @@ async function idbPut(k, v) {
     tx.onerror = () => reject(tx.error);
   });
 }
-async function aesKey() {
-  let key = await idbGet('aes');
-  if (!key) {
-    // No extraíble: ni siquiera el código de la página puede leer la clave, solo usarla.
-    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    await idbPut('aes', key);
-  }
-  return key;
+// La clave se guarda como 32 bytes y no como CryptoKey: en el iPhone, el service worker
+// no puede leer objetos CryptoKey de IndexedDB (error de WebKit) y no podría abrir los avisos.
+let keyp = null;
+function aesKey() {
+  return keyp ||= (async () => {
+    let raw = await idbGet('raw');
+    if (!(raw instanceof Uint8Array) || raw.length !== 32) {
+      raw = crypto.getRandomValues(new Uint8Array(32));
+      await idbPut('raw', raw);
+      await idbPut('aes', undefined); // la clave vieja (CryptoKey) ya no se usa
+    }
+    return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  })().catch(err => { keyp = null; throw err; });
 }
 // La hora y el tipo van como "datos asociados": si el servidor los cambiara, el iPhone no abriría el aviso.
 async function seal(key, msg, due, kind) {
@@ -141,9 +146,14 @@ export async function testPush() {
     id: info().id,
     payload: await seal(await aesKey(), { t: '🔔 ¡Funciona!', b: 'Así te llegarán los avisos de Rumbo, aunque la app esté cerrada.', u: './#hoy', g: 'prueba' }, 0, 'prueba'),
   });
+  const start = Date.now();
   let res = await send();
   if ((res.status === 404 || res.status === 410) && await recover()) res = await send();
-  return res.ok;
+  if (!res.ok) return { ok: false };
+  // El service worker anota si un aviso llegó pero no pudo abrirlo; se revisa unos segundos después.
+  await new Promise(r => setTimeout(r, 6000));
+  const diag = await idbGet('diag').catch(() => null);
+  return { ok: true, opened: !(diag && diag.at >= start), error: diag?.error };
 }
 
 /* ---------- Qué avisos tocan en los próximos días ---------- */
@@ -209,7 +219,8 @@ export async function syncPush(force = false) {
   dirty = false;
   syncing = (async () => {
     const events = buildEvents();
-    const hash = JSON.stringify(events.map(e => [e.due, e.kind, e.msg.t, e.msg.b]));
+    // "k2": versión de la clave. Al cambiarla, todos los avisos se vuelven a sellar con la clave nueva.
+    const hash = `k2${JSON.stringify(events.map(e => [e.due, e.kind, e.msg.t, e.msg.b]))}`;
     const inf = info();
     // Sin cambios y sincronizado hace menos de 6 h: no hace falta molestar al servidor.
     if (!force && inf.lastHash === hash && Date.now() - (inf.lastSync || 0) < 6 * 3600e3) return;

@@ -407,9 +407,12 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   });
   on('notify-test', async el => {
     el.disabled = true;
-    const ok = await testPush().catch(() => false);
+    toast('Enviando aviso de prueba…', { sub: 'Debería llegarte en unos segundos', icon: 'bell', tint: 'c-blue' });
+    const r = await testPush().catch(() => ({ ok: false }));
     el.disabled = false;
-    toast(ok ? 'Aviso enviado' : 'No se pudo enviar', { sub: ok ? 'Debería llegarte en unos segundos' : 'Revisa tu conexión', icon: ok ? 'check' : 'xmark', tint: ok ? 'c-green' : 'c-red' });
+    if (!r.ok) toast('No se pudo enviar', { sub: 'Revisa tu conexión', icon: 'xmark', tint: 'c-red' });
+    else if (!r.opened) toast('Llegó, pero no se pudo abrir', { sub: `Tu iPhone mostró el texto genérico (${r.error || 'error'})`, icon: 'xmark', tint: 'c-orange', duration: 9000 });
+    else toast('Aviso enviado', { sub: 'Si no lo viste, revisa Ajustes › Notificaciones › Rumbo', icon: 'check', tint: 'c-green' });
   });
   on('notify-disable', async () => {
     const i = await alertDialog({

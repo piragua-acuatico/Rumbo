@@ -1,7 +1,7 @@
 // Guarda la app en el teléfono para que abra sin internet y se actualice sola.
 // VERSION la cambia `node tools/publicar.cjs` en cada publicación: al cambiar este
 // archivo, el iPhone detecta la versión nueva y la instala.
-const VERSION = '2.3.0';
+const VERSION = '2.3.1';
 const CACHE = `rumbo-${VERSION}`;
 const ASSETS = [
   './',
@@ -92,17 +92,25 @@ const FALLBACK = {
   prueba: ['🔔 Rumbo', 'Aviso de prueba'],
 };
 
-function pushKey() {
+function keyStore(mode, fn) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('rumbo-push', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('keys');
     req.onerror = () => reject(req.error);
     req.onsuccess = () => {
-      const get = req.result.transaction('keys').objectStore('keys').get('aes');
-      get.onsuccess = () => resolve(get.result);
-      get.onerror = () => reject(get.error);
+      const db = req.result;
+      const r = fn(db.transaction('keys', mode).objectStore('keys'));
+      r.onsuccess = () => { db.close(); resolve(r.result); };
+      r.onerror = () => { db.close(); reject(r.error); };
     };
   });
+}
+
+// La clave está guardada como 32 bytes (en el iPhone, el service worker no puede leer objetos CryptoKey).
+async function pushKey() {
+  const raw = await keyStore('readonly', s => s.get('raw'));
+  if (!(raw instanceof Uint8Array) || raw.length !== 32) throw new Error('sin clave');
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
 }
 
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), c => c.charCodeAt(0));
@@ -121,7 +129,12 @@ self.addEventListener('push', e => {
     let data = {};
     try { data = e.data ? e.data.json() : {}; } catch { /* sin datos */ }
     let msg = null;
-    try { msg = await openMessage(data.e, data.d, data.k); } catch { /* clave perdida o mensaje alterado */ }
+    try {
+      msg = await openMessage(data.e, data.d, data.k);
+    } catch (err) {
+      // Clave perdida o mensaje alterado: se muestra el texto genérico y se anota el motivo para la app.
+      try { await keyStore('readwrite', s => s.put({ at: Date.now(), kind: data.k, error: String(err?.name || err) }, 'diag')); } catch { /* sin almacenamiento */ }
+    }
     const [title, body] = FALLBACK[data.k] || ['Rumbo', ''];
     await self.registration.showNotification(msg?.t || title, {
       body: msg?.b ?? body,
