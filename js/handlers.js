@@ -374,6 +374,26 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   on('change:set-water-every', el => setS('waterEvery', Number(el.value)));
   on('change:set-time', el => setS(el.dataset.keySet, el.value || DEFAULT_SETTINGS[el.dataset.keySet]));
   on('set-sleep-goal', el => { haptic(); setS('sleepGoal', clamp(state.settings.sleepGoal + Number(el.dataset.delta) * 0.5, 5, 11)); });
+  // Experimento de la Fase 3: Rumbo le pide al atajo "Rumbo Alarma" que ponga una alarma del reloj.
+  on('alarm-test', () => {
+    const d = new Date(Date.now() + 2 * 60000);
+    const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    haptic();
+    location.href = `shortcuts://run-shortcut?name=${encodeURIComponent('Rumbo Alarma')}&input=text&text=${encodeURIComponent(hhmm)}`;
+    // Si después de un momento Rumbo sigue en pantalla, el iPhone no abrió Atajos.
+    setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        toast('No se abrió Atajos', { sub: 'Cuéntale a Claude que no funcionó', icon: 'xmark', tint: 'c-orange', duration: 7000 });
+        return;
+      }
+      const back = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', back);
+        toast(`Alarma pedida para las ${hhmm}`, { sub: 'Revisa el reloj, bloquea el iPhone y espera', icon: 'alarm', tint: 'c-green', duration: 8000 });
+      };
+      document.addEventListener('visibilitychange', back);
+    }, 2500);
+  });
   on('change:wake-for', el => { if (el.value) { state.wakeFor[el.dataset.date] = el.value; commit(); } });
   on('wake-confirm', el => {
     const input = el.closest('.wake-row')?.querySelector('input');

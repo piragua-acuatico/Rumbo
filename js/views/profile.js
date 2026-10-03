@@ -186,9 +186,14 @@ function viewSleep() {
       <span class="soon-ic">${icon('alarm')}</span>
       <div>
         <b>Muy pronto: despertador con misión</b>
-        <p>Rumbo sonará aunque el iPhone esté en silencio y no parará hasta que resuelvas 5 operaciones. También registrará cuánto duermes.</p>
+        <p>Rumbo pondrá la alarma del reloj de tu iPhone y no te dejará volver a dormir hasta que resuelvas 5 operaciones. También registrará cuánto duermes.</p>
       </div>
-    </section>`;
+    </section>
+    <h2 class="sec-h small" data-key="h-alarm-test">Experimento</h2>
+    <section class="group" data-key="g-alarm-test">
+      ${cell({ label: 'Probar alarma con Atajos', sub: 'Pone una alarma del reloj en 2 minutos', action: 'alarm-test', chevron: true })}
+    </section>
+    <p class="group-foot" data-key="f-alarm-test">Necesita el atajo <b>Rumbo Alarma</b> en la app Atajos. Bloquea el iPhone y ponlo en silencio: la alarma debe sonar igual.</p>`;
 }
 
 function viewPlanning() {
