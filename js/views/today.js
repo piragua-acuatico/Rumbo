@@ -1,9 +1,10 @@
 // Vista "Hoy": anillos, agua, agenda con línea de "ahora" y tareas sin hora.
 import { state, tasksFor, overdueTasks, ensureRoutines, waterFor, focusFor, waterSlots, planTarget } from '../store.js';
-import { todayKey, fmtDateLong, greeting, nowMin, toMin, fromMin, fmtTime, esc, isStandalone, plural } from '../utils.js';
+import { todayKey, fmtDateLong, greeting, nowMin, toMin, fromMin, fmtTime, fmtDur, esc, isStandalone, plural } from '../utils.js';
 import { largeTitle, sectionHead, emptyState, taskRow, nowLine, rings, RING_COLORS } from '../components.js';
 import { icon } from '../icons.js';
 import { avatarHTML } from './profile.js';
+import { missionPending, alarmFor, wakeKey, wakeTimeFor, nightMinutes } from '../sleep.js';
 
 const liters = ml => (ml / 1000).toLocaleString('es', { maximumFractionDigits: 2 });
 
@@ -33,6 +34,39 @@ function nextWaterText() {
   const m = nowMin();
   const next = waterSlots().find(x => x > m);
   return next != null ? `Próximo aviso a las ${fmtTime(fromMin(next))}` : `Mañana desde las ${fmtTime(state.settings.waterStart)}`;
+}
+
+// Sueño: en la noche, "me voy a dormir"; antes de la alarma, la misión temprana;
+// en la mañana, cuánto dormiste.
+function sleepBanner(m) {
+  const s = state.settings;
+  const banner = (key, tint, ic, title, text, attrs) => `
+    <button class="banner tappable-card" data-key="${key}" ${attrs} style="--tint: var(--${tint})">
+      <span class="banner-ic">${icon(ic)}</span>
+      <span class="banner-text"><b>${title}</b><p>${text}</p></span>
+      <span class="cell-chev">${icon('chevron-right')}</span>
+    </button>`;
+  const p = missionPending();
+  if (p && p.forced) return banner('b-sleep', 'c-orange', 'alarm', 'Tu misión te espera', `Resuélvela para ${p.backup ? 'apagar la alarma de respaldo' : 'empezar tu día'}.`, 'data-action="mission-open"');
+  if (p) return banner('b-sleep', 'c-orange', 'alarm', '¿Ya despierto?', `Tu alarma es a las ${fmtTime(p.time)}. Haz la misión y la apago.`, 'data-action="mission-open"');
+  const k = todayKey();
+  const last = state.sleep.log[k];
+  if (last && m < 12 * 60) {
+    const mins = nightMinutes(last);
+    return banner('b-sleep', 'c-indigo', 'bed', mins != null ? `Anoche dormiste ${fmtDur(mins)}` : 'Buenos días', mins != null ? (mins >= s.sleepGoal * 60 ? 'Cumpliste tu meta de sueño.' : `Tu meta es de ${s.sleepGoal} h.`) + ' Ver tu semana' : 'Ver tu sueño', 'data-action="go" data-tab="perfil/sueno"');
+  }
+  if (!s.alarm && state.sleep.bed?.key === k && !last && m < 12 * 60) {
+    return banner('b-sleep', 'c-orange', 'sun-fill', '¿Ya te despertaste?', 'Toca para anotar tu hora de despertar.', 'data-action="sleep-wake"');
+  }
+  const evening = m >= 20 * 60 || m < 3 * 60;
+  const wk = wakeKey();
+  if (evening && state.sleep.bed?.key !== wk) {
+    const a = alarmFor(wk);
+    const text = !s.alarm ? 'Toca cuando te acuestes y anoto tu hora de dormir.'
+      : a && !a.stale ? `Tu alarma suena a las ${fmtTime(a.time)}. Toca al acostarte.` : `Toca al acostarte y pongo tu alarma de las ${fmtTime(wakeTimeFor(wk))}.`;
+    return banner('b-sleep', 'c-indigo', 'moon-fill', '¿Te vas a dormir?', text, 'data-action="sleep-bed"');
+  }
+  return '';
 }
 
 export function viewToday() {
@@ -74,6 +108,8 @@ export function viewToday() {
         <span class="cell-chev">${icon('chevron-right')}</span>
       </button>`);
   }
+
+  out.push(sleepBanner(m));
 
   // Anillos.
   const current = list.find(t => !t.done && t.time && toMin(t.time) <= m && m < toMin(t.time) + (t.duration || 30));

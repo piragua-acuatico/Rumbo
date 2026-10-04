@@ -4,7 +4,7 @@
 // solo existe en este teléfono (IndexedDB). El servidor guarda y reenvía texto
 // cifrado que no puede leer; el service worker lo descifra al mostrarlo.
 import { state, tasksFor, waterSlots } from './store.js';
-import { todayKey, addDays, parseKey, toMin, fmtTime, plural, isStandalone } from './utils.js';
+import { todayKey, addDays, parseKey, toMin, fromMin, fmtTime, plural, isStandalone } from './utils.js';
 import { PUSH } from './config.js';
 
 const LS = 'rumbo.push';
@@ -178,6 +178,19 @@ export function buildEvents(now = Date.now()) {
   const out = [];
   const add = (due, kind, t, b, g) => { if (due > now) out.push({ due, kind, msg: { t, b, u: './#hoy', g } }); };
 
+  // Despertador: desde la hora de la alarma, un aviso por minuto hasta que hagas la misión
+  // (al hacerla, la alarma se borra y la siguiente sincronización los cancela).
+  const al = state.sleep.alarm;
+  const alarmDay = s.alarm && al && !state.sleep.log[al.key] ? al.key : null;
+  if (alarmDay) {
+    const start = at(al.key, toMin(al.time));
+    const backupAt = al.backup ? fmtTime(fromMin(toMin(al.time) + al.backup)) : '';
+    for (let i = 0; i <= (al.backup || 5) + 5; i++) {
+      add(start + i * 60e3, 'alarma', i ? '🧮 Tu misión te espera' : '⏰ ¡Buenos días! Resuelve tu misión',
+        al.backup ? `5 operaciones y apagas la alarma de respaldo de las ${backupAt}` : '5 operaciones y empiezas tu día', `alarma-${i}`);
+    }
+  }
+
   for (let i = 0; i < HORIZON_DAYS; i++) {
     const k = addDays(t0, i);
     if (n.water) for (const m of waterSlots()) add(at(k, m), 'agua', '💧 Hora de tomar agua', 'Un vaso y sigues.', 'agua');
@@ -190,7 +203,7 @@ export function buildEvents(now = Date.now()) {
     }
     if (n.plan && !state.planned[addDays(k, 1)]) add(at(k, toMin(s.planTime)), 'planear', '🌙 Hora de planear mañana', 'Cierra el día y deja listo el siguiente en 3 minutos.', 'planear');
     if (n.night && s.nightMode) add(at(k, toMin(s.nightStart) - 15), 'noche', '😴 En 15 min empieza el modo noche', 'Deja el celular cargando lejos de la cama.', 'noche');
-    if (n.morning) {
+    if (n.morning && k !== alarmDay) { // con alarma, el aviso de la misión hace de buenos días
       const pending = dayTasks(k).filter(t => !t.done).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
       const imp = pending.filter(t => t.important).length;
       const first = pending.find(t => t.time);

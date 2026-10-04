@@ -93,7 +93,7 @@ async function main() {
     await click('#tabs [data-tab="plan"]');
     await click('[data-action="plan-seg"][data-value="manana"]');
     await check('Plan › Mañana');
-    await click('[data-action="wake-confirm"]');
+    await click('[data-action="alarm-set"]'); // pone la alarma (en Chrome no hay Atajos: solo se guarda)
     await click('[data-action="plan-seg"][data-value="pendientes"]');
     await check('Plan › Pendientes');
     // Perfil: cada subpantalla y el botón de volver.
@@ -153,6 +153,11 @@ async function main() {
     await click('[data-tab="perfil/iphone"]', 650);
     await click('[data-guide="block"]', 600);
     await click('.sheet [data-action="sheet-close"]', 700);
+    await click('#tabs [data-tab="perfil"]', 650);
+    await click('[data-tab="perfil/sueno"]', 650);
+    await click('[data-guide="atajos"]', 600);
+    await click('.sheet [data-action="sheet-close"]', 700);
+    await check('Perfil › Sueño › guía de Atajos');
     await click('#tabs [data-tab="perfil"]', 650);
     await click('[data-tab="perfil/rutinas"]', 650);
     await click('[data-action="routine"][data-rid=""]', 600);

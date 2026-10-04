@@ -58,6 +58,23 @@
         for (let j = 0; j < counts[i - 1]; j++) s.tasks.push(T('Tarea ' + j, k, { done: true }));
       }
       s.routines = [{ id: 'r1', title: 'Meditar 10 min', time: null, duration: 15, days: [0, 1, 2, 3, 4, 5, 6], category: 'salud' }];
+      // Noches de ejemplo (hora de acostarse → despertar), guardadas en el día en que despertó.
+      const at = (k, h, m) => { const d = new Date(k + 'T00:00'); d.setHours(h, m, 0, 0); return d.getTime(); };
+      const beds = [[23, 10], [23, 45], [22, 50], [0, 20], [23, 5], [23, 30]], wakes = [[6, 30], [6, 40], [6, 25], [7, 10], [6, 35], [6, 30]];
+      s.sleep = { alarm: null, bed: null, log: {} };
+      for (let i = 0; i < 6; i++) {
+        const k = add(-i), b = beds[i], w = wakes[i];
+        s.sleep.log[k] = { bed: b[0] < 12 ? at(k, b[0], b[1]) : at(add(-i - 1), b[0], b[1]), wake: at(k, w[0], w[1]), errors: i % 3 === 0 ? 1 : 0, secs: 70 + i * 9 };
+      }
+      // alarm=-1: la alarma sonó hace 1 minuto (la misión aparece); alarm=30: suena en 30 minutos.
+      if (p.get('alarm')) {
+        const d = new Date(Date.now() + Number(p.get('alarm')) * 60e3);
+        const hh = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        s.sleep.alarm = { key: add(0), time: hh, backup: 10, setAt: Date.now() - 8 * 3600e3 };
+        s.wakeFor = { ...(s.wakeFor || {}), [add(0)]: hh };
+        s.sleep.bed = { key: add(0), at: Date.now() - 7.4 * 3600e3 };
+        delete s.sleep.log[add(0)];
+      }
       if (p.get('planned') === '0') { delete s.planned[add(0)]; delete s.planned[add(1)]; }
       if (p.get('empty') === '1') { s.tasks = []; s.water = {}; s.focusLog = {}; s.journal = {}; s.planned = {}; s.routines = []; }
       localStorage.setItem('rumbo.v1', JSON.stringify(s));

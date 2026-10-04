@@ -3,7 +3,7 @@
 Pequeño programa que vive en **Cloudflare Workers** (gratis) y envía las notificaciones a tu iPhone a la hora exacta, aunque Rumbo esté cerrada.
 
 ## Cómo funciona
-1. La app (`js/push.js`) calcula tus avisos de los próximos 7 días: agua, tareas 5 min antes, planear, modo noche, buenos días, fin del enfoque y, al final de la semana, un recordatorio de abrir Rumbo.
+1. La app (`js/push.js`) calcula tus avisos de los próximos 7 días: agua, tareas 5 min antes, planear, modo noche, buenos días, fin del enfoque, la misión del despertador (cada minuto desde la alarma) y, al final de la semana, un recordatorio de abrir Rumbo. El tipo de aviso es una etiqueta corta (`/^[a-z]{3,12}$/`), así que los tipos nuevos de la app no exigen volver a publicar el servidor.
 2. Cifra cada aviso con una clave que **solo existe en tu iPhone** y le manda al servidor la hora y el texto cifrado.
 3. Cada minuto, el servidor (`src/index.js`, función `sendDue`) busca los avisos que ya tocan y se los entrega a Apple.
 4. Apple los hace llegar a tu iPhone, y el service worker de Rumbo (`sw.js`) los descifra y los muestra.

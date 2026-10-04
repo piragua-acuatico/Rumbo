@@ -4,6 +4,7 @@ import { todayKey, addDays, nowMin, toMin, inRange, timeParts, fmtTime, fmtDur, 
 import { morph } from './morph.js';
 import { icon } from './icons.js';
 import { ui } from './ui.js';
+import { alarmFor, wakeKey, wakeTimeFor } from './sleep.js';
 
 let stars = '';
 function buildStars() {
@@ -30,6 +31,22 @@ export function nightPlanDate() {
   return start > end && nowMin() >= start ? addDays(todayKey(), 1) : todayKey();
 }
 
+// "Me voy a dormir": anota la hora y, si falta, pone la alarma.
+function bedHTML() {
+  if (state.sleep.log[todayKey()] && nowMin() < 12 * 60) return ''; // ya te despertaste
+  const k = wakeKey();
+  const bed = state.sleep.bed?.key === k ? state.sleep.bed : null;
+  const alarm = alarmFor(k);
+  if (bed) {
+    const at = new Date(bed.at);
+    const t = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+    return `<p class="bed-note">${icon('moon-fill')}Te acostaste a las ${fmtTime(t)}${alarm && !alarm.stale ? ` · alarma a las ${fmtTime(alarm.time)}` : ''}</p>`;
+  }
+  const sub = !state.settings.alarm ? 'Anoto tu hora de dormir'
+    : alarm && !alarm.stale ? `Alarma a las ${fmtTime(alarm.time)}` : `Y pongo tu alarma de las ${fmtTime(wakeTimeFor(k))}`;
+  return `<button class="btn primary block bed-btn" data-action="sleep-bed">${icon('moon-fill')}<span>Me voy a dormir<small>${sub}</small></span></button>`;
+}
+
 export function renderNight() {
   const el = document.getElementById('night');
   if (!isNight()) {
@@ -42,7 +59,8 @@ export function renderNight() {
   const plan = tasksFor(pk).filter(t => !t.done);
   const isTomorrow = pk !== todayKey();
   const { hm, ap } = timeParts(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`);
-  const sleepMin = (toMin(s.nightEnd) - nowMin() + 1440) % 1440;
+  // Descanso hasta tu hora de despertar (la de la alarma), no hasta que termina el modo noche.
+  const sleepMin = (toMin(wakeTimeFor(wakeKey())) - nowMin() + 1440) % 1440;
   const planned = !!state.planned[pk];
   const name = s.name ? `, ${esc(s.name)}` : '';
 
@@ -67,6 +85,7 @@ export function renderNight() {
         <input type="text" name="title" placeholder="¿Algo que no quieres olvidar?" enterkeyhint="done" aria-label="Anotar para mañana">
         <button aria-label="Guardar">${icon('plus')}</button>
       </form>
+      ${bedHTML()}
       <button class="btn block" data-action="night-edit">${icon('clock')}${planned ? 'Ajustar el plan' : 'Planear ahora'} (5 min)</button>
       <small class="foot">Modo noche hasta las ${fmtTime(s.nightEnd)}</small>
     </div>`;

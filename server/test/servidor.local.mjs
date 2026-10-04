@@ -82,7 +82,7 @@ try {
     { due: now + 3600_000, kind: 'planear', payload: 'IV.FUTURO' },
     { due: now - 5000, kind: 'tarea', payload: 'PASADO' },             // descartado: ya pasó
     { due: now + 9 * 864e5, kind: 'tarea', payload: 'LEJANO' },        // descartado: más de 8 días
-    { due: now + 5000, kind: 'raro', payload: 'X' },                   // descartado: tipo desconocido
+    { due: now + 5000, kind: 'Raro<b>', payload: 'X' },               // descartado: tipo con caracteres no permitidos
   ] });
   ok('programar: acepta 3 de 6 (descarta el pasado, el lejano y el de tipo raro)', (await sched.json()).scheduled === 3);
 

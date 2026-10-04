@@ -1,7 +1,7 @@
 // Guarda la app en el teléfono para que abra sin internet y se actualice sola.
 // VERSION la cambia `node tools/publicar.cjs` en cada publicación: al cambiar este
 // archivo, el iPhone detecta la versión nueva y la instala.
-const VERSION = '2.3.2';
+const VERSION = '2.4.0';
 const CACHE = `rumbo-${VERSION}`;
 const ASSETS = [
   './',
@@ -24,6 +24,7 @@ const ASSETS = [
   './js/push.js',
   './js/sheet.js',
   './js/sheets.js',
+  './js/sleep.js',
   './js/store.js',
   './js/swipe.js',
   './js/ui.js',
@@ -89,6 +90,7 @@ const FALLBACK = {
   manana: ['☀️ Buenos días', 'Mira tu día en Rumbo.'],
   enfoque: ['⏱ Terminó tu sesión de enfoque', ''],
   recordar: ['📲 Abre Rumbo un momento', 'Así sigues recibiendo tus avisos.'],
+  alarma: ['⏰ Hora de despertar', 'Abre Rumbo y resuelve tu misión.'],
   prueba: ['🔔 Rumbo', 'Aviso de prueba'],
 };
 

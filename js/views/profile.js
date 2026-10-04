@@ -1,13 +1,14 @@
 // Pestaña "Perfil": tu tarjeta y las secciones de configuración, al estilo
 // de la app Ajustes del iPhone. Cada sección abre su propia pantalla.
 import { state, ACCENTS, waterSlots, planningStreak } from '../store.js';
-import { esc, fmtTime, fromMin, toMin, daysText, fmtDur, plural } from '../utils.js';
+import { esc, fmtTime, fromMin, toMin, daysText, fmtDur, plural, todayKey, addDays, dayLetter, relDate } from '../utils.js';
 import { largeTitle, subHeader, cell, segmented, toggleSwitch, stepper, timeField, selectField } from '../components.js';
 import { icon } from '../icons.js';
 import { GUIDES } from '../guides.js';
 import { VERSION as APP_VERSION } from '../version.js';
 import { viewStats } from './stats.js';
 import { pushStatus, pushInfo, pushReady, hasPairCode } from '../push.js';
+import { nightMinutes, at } from '../sleep.js';
 
 const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 const guideDone = id => GUIDES[id].steps.filter((_, i) => state.guide[`${id}.${i}`]).length;
@@ -172,28 +173,64 @@ function viewFocusSettings() {
     <p class="group-foot" data-key="f-focus">Cada sesión de enfoque llena el anillo verde de Hoy.</p>`;
 }
 
+const hm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
 function viewSleep() {
   const s = state.settings;
+  const goal = s.sleepGoal * 60;
+  const t = todayKey();
+  const nights = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6)).map(k => ({ k, n: state.sleep.log[k], mins: nightMinutes(state.sleep.log[k]) }));
+  const known = nights.filter(x => x.mins != null);
+  const avg = known.length ? Math.round(known.reduce((a, x) => a + x.mins, 0) / known.length) : null;
+  const inGoal = known.filter(x => x.mins >= goal).length;
+  const top = Math.max(goal + 90, ...known.map(x => x.mins));
+  const a = state.sleep.alarm;
   const sleepMin = (toMin(s.wakeTime) - toMin(s.nightStart) + 1440) % 1440;
-  return `
-    ${subHeader('Sueño', `Meta de ${s.sleepGoal} horas`)}
-    <section class="group icons" data-key="g-sleep">
-      ${cell({ ic: 'alarm', tint: 'c-orange', label: 'Hora de despertar', sub: 'Sugerida en el ritual', control: timeField('set-time', s.wakeTime, 'data-key-set="wakeTime"') })}
-      ${cell({ ic: 'bed', tint: 'c-indigo', label: 'Meta de sueño', sub: `${s.sleepGoal.toLocaleString('es')} horas`, control: stepper('set-sleep-goal') })}
-    </section>
-    <p class="group-foot" data-key="f-sleep">Si te acuestas cuando empieza el modo noche (${fmtTime(s.nightStart)}), dormirías ${fmtDur(sleepMin)}.</p>
-    <section class="card soon-card" data-key="sleep-soon" style="--tint: var(--c-indigo)">
-      <span class="soon-ic">${icon('alarm')}</span>
-      <div>
-        <b>Muy pronto: despertador con misión</b>
-        <p>Rumbo pondrá la alarma del reloj de tu iPhone y no te dejará volver a dormir hasta que resuelvas 5 operaciones. También registrará cuánto duermes.</p>
+
+  const chart = `
+    <section class="card sleep-card" data-key="sleep-week">
+      <div class="sleep-head">
+        <div><span>Promedio · 7 días</span><b>${avg != null ? fmtDur(avg) : '—'}</b></div>
+        <div><span>En tu meta</span><b>${known.length ? `${inGoal}<small>/${known.length}</small>` : '—'}</b></div>
       </div>
+      <div class="sleep-bars" style="--g:${(goal / top).toFixed(3)}" aria-hidden="true">
+        <em class="goal-line"><small>${s.sleepGoal} h</small></em>
+        ${nights.map(x => `<div class="sb${x.mins != null && x.mins >= goal ? ' ok' : ''}"><i style="height:${x.mins != null ? (x.mins / top * 100).toFixed(1) : 0}%"></i><span>${dayLetter(x.k)}</span></div>`).join('')}
+      </div>
+      ${known.length ? '' : '<p class="sleep-empty">En la noche toca <b>Me voy a dormir</b> y al despertar haz la misión: aquí verás cuánto duermes.</p>'}
+    </section>`;
+
+  const rows = nights.slice().reverse().map(({ k, n, mins }) => `
+    <div class="cell night-row" data-key="nr-${k}">
+      <span class="cell-label">${relDate(k)}<small>${mins != null ? fmtDur(mins) : n ? 'Sin hora de dormir' : 'Sin datos'}</small></span>
+      <input class="pill-input" type="time" value="${n?.bed ? hm(n.bed) : ''}" data-change="sleep-edit" data-date="${k}" data-field="bed" aria-label="Hora de dormir (${relDate(k)})">
+      <span class="night-arrow" aria-hidden="true">→</span>
+      <input class="pill-input" type="time" value="${n ? hm(n.wake) : ''}" data-change="sleep-edit" data-date="${k}" data-field="wake" aria-label="Hora de despertar (${relDate(k)})">
+    </div>`).join('');
+
+  return `
+    ${subHeader('Sueño', avg != null ? `Duermes ${fmtDur(avg)} en promedio` : `Meta de ${s.sleepGoal} horas`)}
+    ${chart}
+    <h2 class="sec-h small" data-key="h-alarm">Despertador</h2>
+    <section class="group icons" data-key="g-alarm">
+      ${cell({ ic: 'alarm', tint: 'c-orange', label: 'Alarma con misión', sub: 'Rumbo la pone en el Reloj del iPhone', control: toggleSwitch('set-alarm', s.alarm, '', 'Alarma con misión') })}
+      ${cell({ ic: 'sunrise', tint: 'c-yellow', label: 'Hora de despertar', sub: 'Si en el ritual no eliges otra', control: timeField('set-time', s.wakeTime, 'data-key-set="wakeTime"') })}
+      ${s.alarm ? cell({ ic: 'repeat', tint: 'c-red', label: 'Alarma de respaldo', sub: 'Suena si no haces la misión', control: selectField('set-alarm-backup', [[0, 'No'], [5, '5 min'], [10, '10 min'], [15, '15 min']], s.alarmBackup) }) : ''}
+      ${cell({ ic: 'bed', tint: 'c-indigo', label: 'Meta de sueño', sub: `${s.sleepGoal.toLocaleString('es')} horas`, control: stepper('set-sleep-goal') })}
+      ${s.alarm ? cell({ ic: 'clock', tint: 'c-gray', label: 'Próxima alarma', value: a && at(a.key, a.time) > Date.now() ? `${relDate(a.key)}, ${fmtTime(a.time)}` : 'Sin poner' }) : ''}
     </section>
-    <h2 class="sec-h small" data-key="h-alarm-test">Experimento</h2>
-    <section class="group" data-key="g-alarm-test">
-      ${cell({ label: 'Probar alarma con Atajos', sub: 'Pone una alarma del reloj en 2 minutos', action: 'alarm-test', chevron: true })}
-    </section>
-    <p class="group-foot" data-key="f-alarm-test">Necesita el atajo <b>Rumbo Alarma</b> en la app Atajos. Bloquea el iPhone y ponlo en silencio: la alarma debe sonar igual.</p>`;
+    <p class="group-foot" data-key="f-alarm">${s.alarm
+      ? 'La alarma la pones en el ritual (Plan › Mañana) o al tocar <b>Me voy a dormir</b>. Suena aunque el iPhone esté bloqueado y en silencio. Al despertar, 5 operaciones la apagan y Rumbo anota cuánto dormiste.'
+      : `Si te acuestas cuando empieza el modo noche (${fmtTime(s.nightStart)}), dormirías ${fmtDur(sleepMin)}.`}</p>
+    ${s.alarm ? `
+      <h2 class="sec-h small" data-key="h-shortcuts">Atajos del iPhone</h2>
+      <section class="group icons" data-key="g-shortcuts">
+        ${cell({ ic: 'shortcuts', tint: 'c-pink', label: 'Configurar Atajos', sub: 'Una sola vez', value: `${guideDone('atajos')}/${GUIDES.atajos.steps.length}`, action: 'guide', attrs: 'data-guide="atajos"', chevron: true })}
+        ${cell({ ic: 'alarm', tint: 'c-green', label: 'Probar alarma', sub: 'Suena en 2 minutos', action: 'alarm-test', chevron: true })}
+      </section>` : ''}
+    <h2 class="sec-h small" data-key="h-nights">Tus noches</h2>
+    <section class="group" data-key="g-nights">${rows}</section>
+    <p class="group-foot" data-key="f-nights">Puedes corregir cualquier hora. Cada noche se guarda en el día en que despertaste.</p>`;
 }
 
 function viewPlanning() {

@@ -20,7 +20,9 @@ const LATE = 60 * 60 * 1000;   // un aviso con más de 1 h de retraso ya no se e
 const STALE = 30 * 864e5;      // un dispositivo que no se reporta en 30 días se olvida
 const BATCH = 20;              // avisos por minuto (límite de subpeticiones del plan gratis)
 const RE_ID = /^[A-Za-z0-9_-]{32,64}$/;
-const KINDS = ['agua', 'tarea', 'planear', 'noche', 'manana', 'enfoque', 'recordar', 'prueba'];
+// Tipo de aviso: una etiqueta corta (agua, tarea, alarma…). Solo minúsculas, para que sea seguro guardarla y
+// para que las fases nuevas de la app no necesiten volver a publicar el servidor.
+const RE_KIND = /^[a-z]{3,12}$/;
 // Solo se envía a los servicios de push conocidos (Apple, Google, Mozilla, Microsoft).
 const PUSH_HOSTS = [/\.push\.apple\.com$/, /^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/];
 
@@ -145,7 +147,7 @@ async function handle(req, env, cors) {
       const due = Math.round(Number(e?.due));
       // Solo avisos futuros: los que ya tocaban siguen en la base y el cron los envía.
       if (!Number.isFinite(due) || due <= now || due > now + HORIZON) continue;
-      if (!KINDS.includes(e.kind) || typeof e.payload !== 'string' || e.payload.length > MAX_PAYLOAD) continue;
+      if (typeof e.kind !== 'string' || !RE_KIND.test(e.kind) || typeof e.payload !== 'string' || e.payload.length > MAX_PAYLOAD) continue;
       rows.push({ sub_id: id, due, kind: e.kind, payload: e.payload });
     }
     // Se reemplazan los avisos futuros de este dispositivo por la lista nueva.

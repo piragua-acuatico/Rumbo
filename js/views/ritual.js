@@ -3,6 +3,7 @@ import { state, tasksFor, inboxTasks, ensureRoutines, planningStreak, planTarget
 import { fmtTime, fmtWeekday, fmtDur, nowMin, toMin, esc, plural } from '../utils.js';
 import { taskRow } from '../components.js';
 import { icon } from '../icons.js';
+import { alarmFor, alarmWindow } from '../sleep.js';
 
 function stepHead(n, ok, title, sub, right = '') {
   return `
@@ -27,7 +28,9 @@ export function viewRitual() {
   const imp = plan.filter(t => t.important).length;
   const inbox = inboxTasks().filter(t => !t.done);
   const wake = state.wakeFor[tk];
-  const ok = [undone.length === 0, !!journal.mood, plan.length > 0, !!wake];
+  // Con alarma activada (y el atajo ya probado), el paso 4 queda listo cuando la alarma está puesta con esa hora.
+  const alarmOk = !s.alarm || !state.sleep.ok || (alarmFor(tk) && !alarmFor(tk).stale);
+  const ok = [undone.length === 0, !!journal.mood, plan.length > 0, !!wake && alarmOk];
   const planned = !!state.planned[tk];
   const dayName = fmtWeekday(tk);
   const late = nowMin() >= toMin(s.planTime);
@@ -94,6 +97,7 @@ export function viewRitual() {
 
   // 4 · Despertador
   const wakeShown = wake || s.wakeTime;
+  const alarm = alarmFor(tk);
   const sleepMin = (toMin(wakeShown) - toMin(s.nightStart) + 1440) % 1440;
   out.push(`
     <section class="card step-card${ok[3] ? ' ok' : ''}" data-key="st4">
@@ -101,9 +105,19 @@ export function viewRitual() {
       <div class="wake-row">
         <span class="wake-ic">${icon('alarm')}</span>
         <input class="pill-input wake-input" type="time" value="${wakeShown}" data-change="wake-for" data-date="${tk}" aria-label="Hora de despertar">
-        ${wake ? '' : `<button class="capsule primary" data-action="wake-confirm" data-date="${tk}">Listo</button>`}
+        ${!s.alarm
+          ? (wake ? '' : `<button class="capsule primary" data-action="wake-confirm" data-date="${tk}">Listo</button>`)
+          : alarm && !alarm.stale
+            ? `<span class="alarm-ok">${icon('check')}Alarma puesta</span>`
+            : alarmWindow(tk, wakeShown).ok
+              ? `<button class="capsule primary" data-action="alarm-set" data-date="${tk}">${alarm ? 'Actualizar alarma' : 'Poner alarma'}</button>`
+              : (wake ? '' : `<button class="capsule primary" data-action="wake-confirm" data-date="${tk}">Listo</button>`)}
       </div>
-      <p class="group-foot" style="margin:12px 2px 0">Si te acuestas a las ${fmtTime(s.nightStart)}, dormirías <b>${fmtDur(sleepMin)}</b> (tu meta es de ${s.sleepGoal} h). La alarma con misión llega muy pronto; por ahora pon también la del iPhone.</p>
+      <p class="group-foot" style="margin:12px 2px 0">Si te acuestas a las ${fmtTime(s.nightStart)}, dormirías <b>${fmtDur(sleepMin)}</b> (tu meta es de ${s.sleepGoal} h).${s.alarm
+        ? (!alarm && !alarmWindow(tk, wakeShown).ok && !alarmWindow(tk, wakeShown).past
+          ? ` Podrás poner la alarma después de las ${fmtTime(wakeShown)} de hoy: el Reloj del iPhone solo la programa para las próximas 24 horas.`
+          : ` ${alarm && !alarm.stale ? 'Rumbo puso la alarma en el Reloj de tu iPhone' : 'Rumbo pone la alarma en el Reloj de tu iPhone'}${s.alarmBackup ? `, con una de respaldo ${s.alarmBackup} min después` : ''}: al despertar, la misión la apaga.`)
+        : ''}</p>
     </section>`);
 
   if (!planned) {

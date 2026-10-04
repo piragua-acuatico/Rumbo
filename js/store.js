@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   leadMin: 5,
   wakeTime: '07:00',
   sleepGoal: 8,
+  alarm: true,        // Rumbo pone la alarma del reloj (con Atajos) y pide la misión al despertar
+  alarmBackup: 10,    // minutos hasta la alarma de respaldo (0 = sin respaldo)
   // Qué avisos se envían como notificación.
   notify: { water: true, tasks: true, plan: true, night: true, morning: true, focus: true },
 };
@@ -60,6 +62,9 @@ function fresh() {
     guide: {},
     hideInstall: false,
     focus: null,      // {taskId,title,total,endsAt,remaining,running,finished}
+    sleep: { alarm: null, bed: null, log: {}, ok: false },
+    // alarm: {key, time, backup, setAt} · bed: {key, at} · log: fecha de despertar → {bed, wake, errors, secs}
+    // ok: ya confirmaste una vez que el atajo pone la alarma (desde ahí Rumbo te la exige al cerrar el día)
     profile: { photo: null, since: Date.now() },
     settings: { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify } },
   };
@@ -114,6 +119,8 @@ function cleanSettings(x) {
     leadMin: [0, 5, 10, 15, 30].includes(Number(x.leadMin)) ? Number(x.leadMin) : d.leadMin,
     wakeTime: t('wakeTime'),
     sleepGoal: num(x.sleepGoal, 5, 11, d.sleepGoal),
+    alarm: x.alarm === undefined ? d.alarm : !!x.alarm,
+    alarmBackup: [0, 5, 10, 15].includes(Number(x.alarmBackup)) ? Number(x.alarmBackup) : d.alarmBackup,
     notify: Object.fromEntries(Object.keys(d.notify).map(k => [k, obj(x.notify)[k] === undefined ? d.notify[k] : !!obj(x.notify)[k]])),
   };
 }
@@ -133,6 +140,25 @@ function cleanFocus(f) {
     taskId: typeof f.taskId === 'string' && RE_ID.test(f.taskId) ? f.taskId : null, title: str(f.title, 300), total,
     remaining: num(f.remaining, 0, total, total), running: !!f.running && Number.isFinite(Number(f.endsAt)),
     endsAt: Number(f.endsAt) || null, finished: !!f.finished,
+  };
+}
+
+// Sueño: la alarma pendiente, la hora en que te acostaste y el registro de noches.
+const ts = v => { const n = Number(v); return Number.isFinite(n) && n > 1e12 && n < Date.now() + 2 * 864e5 ? n : null; };
+function cleanSleep(x) {
+  x = obj(x);
+  const a = obj(x.alarm), b = obj(x.bed);
+  return {
+    alarm: date(a.key) && time(a.time) ? { key: a.key, time: a.time, backup: [0, 5, 10, 15].includes(Number(a.backup)) ? Number(a.backup) : 0, setAt: ts(a.setAt) || Date.now() } : null,
+    bed: date(b.key) && ts(b.at) ? { key: b.key, at: ts(b.at) } : null,
+    log: byDate(x.log, n => {
+      n = obj(n);
+      const wake = ts(n.wake);
+      if (!wake) return null;
+      const bed = ts(n.bed);
+      return { bed: bed && bed < wake && wake - bed < 20 * 3600e3 ? bed : null, wake, errors: num(n.errors, 0, 999, 0), secs: num(n.secs, 0, 86400, 0) };
+    }),
+    ok: !!x.ok,
   };
 }
 
@@ -161,6 +187,7 @@ function migrate(data) {
   s.hideInstall = !!data.hideInstall;
   s.focus = cleanFocus(data.focus);
   s.profile = cleanProfile(data.profile, s.tasks);
+  s.sleep = cleanSleep(data.sleep);
   return s;
 }
 
@@ -214,6 +241,7 @@ export function prune() {
   for (const bag of [state.water, state.focusLog, state.planned, state.wakeFor]) {
     for (const k of Object.keys(bag)) if (k < addDays(todayKey(), -180)) delete bag[k];
   }
+  for (const k of Object.keys(state.sleep.log)) if (k < addDays(todayKey(), -400)) delete state.sleep.log[k];
   for (const k of Object.keys(state.routineSkips)) if (k.split('|')[1] < limit) delete state.routineSkips[k];
   save();
 }

@@ -12,6 +12,19 @@ export const GUIDES = {
       ['Ábrela siempre desde el ícono', 'La app instalada y Safari guardan tus datos <b>por separado</b>: si anotas algo en Safari, no aparece en el ícono. Usa siempre el ícono de Rumbo.'],
     ],
   },
+  atajos: {
+    title: 'Alarma con Atajos',
+    ic: 'shortcuts',
+    tint: 'c-pink',
+    intro: 'Rumbo usa la app <b>Atajos</b> para poner la alarma en el <b>Reloj</b> de tu iPhone: así suena bloqueado, en silencio y sin gastar batería. Se configura una sola vez.',
+    callout: 'Los nombres tienen que ser exactos: <b>Rumbo Alarma</b> y <b>Rumbo Apagar</b>.',
+    steps: [
+      ['Crea «Rumbo Apagar»', 'En Atajos toca <b>+</b> y ponle de nombre <b>Rumbo Apagar</b>. Agrega <b>Buscar alarmas</b>, toca <b>Añadir filtro</b> y deja: <b>Etiqueta</b> · <b>es</b> · <b>Rumbo</b>. Después agrega <b>Eliminar alarmas</b>.'],
+      ['Al inicio de «Rumbo Alarma»', 'Abre <b>Rumbo Alarma</b>. Arriba de todo agrega <b>Ejecutar atajo</b> y elige <b>Rumbo Apagar</b>. Debajo agrega <b>Dividir texto</b>: en el texto elige <b>Entrada del atajo</b> y sepáralo por <b>Saltos de línea</b>.'],
+      ['Una alarma por cada hora', 'Agrega <b>Repetir con cada</b> (sobre el <b>Texto dividido</b>) y arrastra tu <b>Crear alarma</b> adentro. En la hora elige <b>Elemento de repetición</b> y en <b>Etiqueta</b> escribe <b>Rumbo</b>.'],
+      ['Pruébalo', 'Vuelve a Rumbo y toca <b>Probar alarma</b>. Si el iPhone pide permiso para el Reloj, elige <b>Permitir siempre</b>. No hace falta borrar la alarma de prueba: la próxima vez que Rumbo ponga tu alarma, la quita.'],
+    ],
+  },
   block: {
     title: 'Bloqueos con Tiempo en pantalla',
     ic: 'hourglass',

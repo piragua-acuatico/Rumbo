@@ -3,7 +3,7 @@ import {
   state, commit, save, getTask, tasksFor, toggleTask, deleteTask, setTaskDate, addTask, addWater,
   ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, DEFAULT_SETTINGS,
 } from './store.js';
-import { todayKey, addDays, uid, plural, clamp, nowMin, toMin } from './utils.js';
+import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime } from './utils.js';
 import { on } from './actions.js';
 import { ui } from './ui.js';
 import { haptic, toast, confetti, animateOut, pop } from './fx.js';
@@ -18,6 +18,7 @@ import { openOnboarding, onbNext, onbBack } from './onboarding.js';
 import { nightPlanDate, isNightTime } from './night.js';
 import { GUIDES } from './guides.js';
 import { enablePush, disablePush, testPush } from './push.js';
+import { setAlarm, alarmsOff, alarmWindow, testAlarm, goToBed, wakeUpNow, openMission, missionAction, alarmFor, wakeTimeFor, backupTime, at } from './sleep.js';
 
 const taskOf = el => getTask(el.closest('[data-id]')?.dataset.id);
 const rowOf = el => el.closest('.row');
@@ -337,6 +338,18 @@ export function registerHandlers({ go, back, render, applyTheme }) {
       if (i === 0) { openAdd('plan'); return; }
       if (i !== 1) return;
     }
+    // Red de seguridad: que no se cierre el día sin la alarma puesta.
+    let putAlarm = false;
+    // (solo cuando ya confirmaste que el atajo funciona, y si la hora cae en las próximas 24 h)
+    if (state.settings.alarm && state.sleep.ok && (!alarmFor(tk) || alarmFor(tk).stale) && alarmWindow(tk).ok) {
+      const i = await alertDialog({
+        title: 'Falta tu alarma', message: `¿La pongo en el Reloj para las ${fmtTime(wakeTimeFor(tk))}?`,
+        actions: [{ label: 'Poner alarma', style: 'default' }, { label: 'Sin alarma' }, { label: 'Cancelar', style: 'cancel' }],
+      });
+      if (i !== 0 && i !== 1) return;
+      putAlarm = i === 0;
+    }
+    if (putAlarm && setAlarm(tk)) watchShortcut(['Alarma puesta', `Suena a las ${fmtTime(state.sleep.alarm.time)}`]);
     state.planned[tk] = Date.now();
     commit();
     haptic('success');
@@ -374,25 +387,97 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   on('change:set-water-every', el => setS('waterEvery', Number(el.value)));
   on('change:set-time', el => setS(el.dataset.keySet, el.value || DEFAULT_SETTINGS[el.dataset.keySet]));
   on('set-sleep-goal', el => { haptic(); setS('sleepGoal', clamp(state.settings.sleepGoal + Number(el.dataset.delta) * 0.5, 5, 11)); });
-  // Experimento de la Fase 3: Rumbo le pide al atajo "Rumbo Alarma" que ponga una alarma del reloj.
+  /* ---------- Sueño y despertador ---------- */
+  // La primera vez que Rumbo pone una alarma, al volver de Atajos pregunta si quedó puesta: si el atajo
+  // falta o falla, Atajos igual se abre (con un error), así que Rumbo no lo puede saber solo.
+  async function confirmAlarm() {
+    const a = state.sleep.alarm;
+    if (state.sleep.ok || !a) return;
+    const i = await alertDialog({
+      title: '¿Quedó puesta la alarma?',
+      message: `Abre el Reloj: debería haber una alarma «Rumbo» a las ${fmtTime(a.time)}. Solo te lo pregunto esta vez.`,
+      actions: [{ label: 'No', style: 'cancel' }, { label: 'Sí, quedó', style: 'default' }],
+    });
+    if (i === 1) {
+      state.sleep.ok = true;
+      commit();
+      haptic('success');
+      toast('¡Despertador listo!', { sub: 'Desde ahora Rumbo pone tu alarma cada noche', icon: 'alarm', tint: 'c-green' });
+    } else {
+      state.sleep.alarm = null;
+      commit();
+      openGuide('atajos');
+    }
+  }
+  // Si Atajos no se abre en 2,5 s, el iPhone no pudo abrirlo; si se abrió, al volver se confirma.
+  const watchShortcut = (okMsg, { confirm = false } = {}) => setTimeout(() => {
+    if (document.visibilityState === 'visible') {
+      toast('No se abrió Atajos', { sub: 'Revisa la guía en Perfil › Sueño', icon: 'xmark', tint: 'c-orange', duration: 7000 });
+      return;
+    }
+    const back = () => {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', back);
+      if (confirm && !state.sleep.ok) { setTimeout(confirmAlarm, 500); return; }
+      if (okMsg) toast(okMsg[0], { sub: okMsg[1], icon: 'alarm', tint: 'c-green', duration: 7000 });
+    };
+    document.addEventListener('visibilitychange', back);
+  }, 2500);
+
   on('alarm-test', () => {
-    const d = new Date(Date.now() + 2 * 60000);
-    const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     haptic();
-    location.href = `shortcuts://run-shortcut?name=${encodeURIComponent('Rumbo Alarma')}&input=text&text=${encodeURIComponent(hhmm)}`;
-    // Si después de un momento Rumbo sigue en pantalla, el iPhone no abrió Atajos.
-    setTimeout(() => {
-      if (document.visibilityState === 'visible') {
-        toast('No se abrió Atajos', { sub: 'Cuéntale a Claude que no funcionó', icon: 'xmark', tint: 'c-orange', duration: 7000 });
-        return;
-      }
-      const back = () => {
-        if (document.visibilityState !== 'visible') return;
-        document.removeEventListener('visibilitychange', back);
-        toast(`Alarma pedida para las ${hhmm}`, { sub: 'Revisa el reloj, bloquea el iPhone y espera', icon: 'alarm', tint: 'c-green', duration: 8000 });
-      };
-      document.addEventListener('visibilitychange', back);
-    }, 2500);
+    const when = testAlarm();
+    watchShortcut([`Alarma de prueba: ${fmtTime(when)}`, 'Bloquea el iPhone, ponlo en silencio y espera']);
+  });
+  on('alarm-set', el => {
+    const k = el.dataset.date;
+    const input = el.closest('.wake-row')?.querySelector('input');
+    const time = input?.value || wakeTimeFor(k);
+    if (!setAlarm(k, time)) {
+      toast('Todavía no se puede', { sub: `El Reloj solo pone alarmas para las próximas 24 horas`, icon: 'alarm', tint: 'c-orange' });
+      return;
+    }
+    haptic('success');
+    const a = state.sleep.alarm;
+    watchShortcut(['Alarma puesta', `Suena a las ${fmtTime(a.time)}${a.backup ? ` · respaldo a las ${fmtTime(backupTime(a))}` : ''}`], { confirm: true });
+  });
+  on('sleep-bed', () => { if (goToBed()) watchShortcut(null, { confirm: true }); });
+  on('sleep-wake', () => { wakeUpNow(); toast('¡Buenos días!', { sub: 'Anoté tu hora de despertar', icon: 'sun-fill', tint: 'c-orange' }); });
+  on('mission-open', () => { haptic(); openMission(); });
+  for (const a of ['mission-key', 'mission-later', 'mission-off', 'mission-close']) on(a, el => missionAction(a, el));
+  on('set-alarm', () => {
+    haptic();
+    state.settings.alarm = !state.settings.alarm;
+    const a = state.sleep.alarm;
+    if (!state.settings.alarm && a) {
+      state.sleep.alarm = null;
+      // Si la alarma aún no sonaba, también se borra del Reloj (si no, sonaría sin misión).
+      if (at(a.key, a.time) + (a.backup || 0) * 60e3 > Date.now()) alarmsOff();
+    }
+    commit();
+  });
+  on('change:set-alarm-backup', el => setS('alarmBackup', Number(el.value)));
+  // Corregir una noche del registro: la hora de dormir de la tarde/noche cuenta para el día anterior.
+  on('change:sleep-edit', el => {
+    const k = el.dataset.date, field = el.dataset.field, v = el.value;
+    if (!v) return;
+    const old = state.sleep.log[k];
+    // Una noche que todavía no termina (su despertar aún no llega) no se puede anotar: cancelaría la misión.
+    if (!old && (state.sleep.alarm?.key === k || at(k, wakeTimeFor(k)) > Date.now())) {
+      toast('Esta noche todavía no termina', { sub: 'Se anota sola cuando haces la misión', icon: 'moon-fill', tint: 'c-indigo' });
+      render();
+      return;
+    }
+    const n = old || { bed: null, wake: at(k, wakeTimeFor(k)), errors: 0, secs: 0 };
+    const tsv = field === 'wake' ? at(k, v) : at(toMin(v) >= 12 * 60 ? addDays(k, -1) : k, v);
+    const next = { ...n, [field]: tsv };
+    if (next.wake > Date.now() || (next.bed && (next.bed >= next.wake || next.wake - next.bed > 20 * 3600e3))) {
+      toast('Esa hora no cuadra', { sub: 'La hora de dormir debe ser antes de la de despertar, y las dos en el pasado', icon: 'xmark', tint: 'c-red' });
+      render();
+      return;
+    }
+    state.sleep.log[k] = next;
+    commit();
   });
   on('change:wake-for', el => { if (el.value) { state.wakeFor[el.dataset.date] = el.value; commit(); } });
   on('wake-confirm', el => {

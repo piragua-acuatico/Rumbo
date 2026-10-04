@@ -12,6 +12,7 @@ import { initSwipe } from './swipe.js';
 import { registerHandlers, completeTask } from './handlers.js';
 import { renderNight, isNight } from './night.js';
 import { render as renderFocus } from './focus.js';
+import { render as renderMission } from './sleep.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
 import { scheduleSync, syncPush, pushStatus, updateBadge, whenPushReady } from './push.js';
@@ -128,6 +129,7 @@ function render() {
   updateTabbar();
   renderNight();
   renderFocus();
+  renderMission();
   refreshSheet();
   updateBadge();
 }
@@ -201,7 +203,7 @@ function onScroll() {
 
 // Deslizar desde el borde izquierdo para volver, como en iOS.
 let edge = null;
-const overlayOpen = () => sheetOpen() || !!$('.alert-wrap') || ['focus', 'night', 'onboarding'].some(id => !$(`#${id}`).hidden);
+const overlayOpen = () => sheetOpen() || !!$('.alert-wrap') || ['focus', 'night', 'mission', 'onboarding'].some(id => !$(`#${id}`).hidden);
 document.addEventListener('pointerdown', e => {
   const onPage = e.target.closest?.('#view, .navbar');
   edge = ui.sub && e.clientX < 24 && onPage && !overlayOpen() ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null;
