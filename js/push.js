@@ -96,10 +96,10 @@ async function seal(key, msg, due, kind) {
 
 /* ---------- Hablar con el servidor ---------- */
 async function api(path, body) {
-  const res = await fetch(PUSH.server.replace(/\/$/, '') + path, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  });
-  return res;
+  const json = JSON.stringify(body);
+  // Al salir de Rumbo, la petición tiene que sobrevivir a que iOS suspenda la app (keepalive admite hasta 64 KB).
+  const keepalive = document.visibilityState === 'hidden' && json.length < 60000;
+  return fetch(PUSH.server.replace(/\/$/, '') + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json, keepalive });
 }
 
 async function register(sub, pair) {
@@ -228,10 +228,29 @@ export function buildEvents(now = Date.now()) {
   add(at(addDays(t0, HORIZON_DAYS - 1), 12 * 60), 'recordar', '📲 Abre Rumbo un momento', 'Así sigues recibiendo tus avisos la próxima semana.', 'recordar');
   const f = state.focus;
   if (n.focus && f?.running && f.endsAt) {
-    add(f.endsAt, 'enfoque', '⏱ Terminó tu sesión de enfoque', `${Math.round(f.total / 60)} min${f.title ? ` · ${f.title}` : ''}. ¡Bien hecho!`, 'enfoque');
+    if (f.strict) add(f.endsAt, 'enfoque', '🌳 ¡Tu árbol creció!', `${treeBar(1)} · ${Math.round(f.total / 60)} min de enfoque${f.title ? ` · ${f.title}` : ''}`, 'arbol');
+    else add(f.endsAt, 'enfoque', '⏱ Terminó tu sesión de enfoque', `${Math.round(f.total / 60)} min${f.title ? ` · ${f.title}` : ''}. ¡Bien hecho!`, 'enfoque');
+  }
+  // Modo árbol fuera de Rumbo: un aviso al salir y otro cada vez que el árbol avanza un 20 %.
+  // Todos usan la misma etiqueta, así el nuevo reemplaza al anterior en vez de amontonarse.
+  if (focusAway && f?.running && f.strict && f.endsAt > now) {
+    const start = f.endsAt - f.total * 1000;
+    const marks = [now + 20e3];
+    for (let q = 0.2; q < 0.99; q += 0.2) { const t = start + f.total * 1000 * q; if (t > now + 60e3) marks.push(t); }
+    for (const t of marks) {
+      const p = Math.min(1, Math.max(0, (t - start) / (f.total * 1000)));
+      const left = Math.max(1, Math.round((f.endsAt - t) / 60e3));
+      add(t, 'arbol', `${p < 0.34 ? '🌱' : p < 0.67 ? '🌿' : '🌳'} Tu árbol está creciendo`, `${treeBar(p)} ${Math.round(p * 100)} % · quedan ${left} min${f.title ? ` · ${f.title}` : ''}`, 'arbol');
+    }
   }
   return out.sort((a, b) => a.due - b.due).slice(0, 300);
 }
+
+/* ---------- Modo árbol fuera de Rumbo ---------- */
+let focusAway = false;
+export function setFocusAway(on) { focusAway = !!on; }
+// Barra de 10 cuadros; en cuanto el árbol empieza a crecer ya se ve al menos uno verde.
+const treeBar = p => { const n = p > 0 ? Math.min(10, Math.max(1, Math.round(p * 10))) : 0; return '🟩'.repeat(n) + '⬜'.repeat(10 - n); };
 
 /* ---------- Enviar el horario al servidor ---------- */
 let syncing = null;

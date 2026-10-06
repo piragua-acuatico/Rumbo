@@ -195,9 +195,9 @@ function viewFocusSettings() {
     </section>
     <p class="group-foot" data-key="f-focus">Cada sesión de enfoque llena el anillo verde de Hoy.</p>
     <section class="group icons" data-key="g-tree">
-      ${cell({ ic: 'leaf', tint: 'c-green', label: 'Modo árbol', sub: 'Al estilo Forest: si sales de Rumbo, el árbol se seca', control: toggleSwitch('set-focus-strict', s.focusStrict, '', 'Modo árbol') })}
+      ${cell({ ic: 'leaf', tint: 'c-green', label: 'Modo árbol', sub: 'Crece un árbol mientras te enfocas', control: toggleSwitch('set-focus-strict', s.focusStrict, '', 'Modo árbol') })}
     </section>
-    <p class="group-foot" data-key="f-tree">${state.trees.grown || state.trees.dead ? `Tu bosque: 🌳 ${state.trees.grown} · 🥀 ${state.trees.dead}. ` : ''}Durante la sesión la pantalla se queda encendida. Si cambias de app o bloqueas el iPhone más de 10 segundos, la sesión no cuenta.</p>`;
+    <p class="group-foot" data-key="f-tree">${state.trees.grown ? `Tu bosque: 🌳 ${state.trees.grown}. ` : ''}El árbol sigue creciendo aunque bloquees el iPhone. Si sales de Rumbo, te llegan avisos con su progreso (🟩 y el tiempo que falta) hasta que crezca.</p>`;
 }
 
 const hm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };

@@ -17,7 +17,7 @@ Cinco pestañas: **Hoy · Plan · Diario · CrossFit · Perfil**.
   - Apariencia, Configura tu iPhone (instalación y bloqueos con Tiempo en pantalla) y Datos y privacidad.
 - **Notificaciones reales** (agua, tareas, planear, modo noche, buenos días, fin del enfoque, misión del despertador), aunque la app esté cerrada. Las envía un servidor propio en Cloudflare (carpeta `server/`, con su propio README) y viajan cifradas: el servidor no puede leerlas.
 - **Despertador con misión:** Rumbo pone la alarma en el **Reloj** del iPhone usando la app **Atajos** (suena bloqueado, en silencio y sin gastar batería), más una alarma de respaldo. Al despertar, 5 operaciones apagan el respaldo y Rumbo anota cuánto dormiste. Guía en Perfil › Sueño.
-- **Enfoque:** temporizador a pantalla completa, con un indicador flotante cuando lo minimizas. **Modo árbol** (estilo Forest): mientras te enfocas crece un árbol; si sales de Rumbo más de 10 s, se seca. La pantalla se queda encendida.
+- **Enfoque:** temporizador a pantalla completa, con un indicador flotante cuando lo minimizas. **Modo árbol:** mientras te enfocas crece un árbol (🌱 → 🌿 → 🌳); sigue creciendo con la pantalla bloqueada y, si sales de Rumbo, llegan avisos con su progreso y el tiempo que falta.
 - **Racha humana:** un día sin planear cada 7 días no la rompe.
 - **Logros** (Perfil › Logros) y **confeti solo en hitos** (logros y rachas de 7, 14, 30… días).
 - **Aviso de sobrecarga** en el ritual (más de 8 h de tareas o tareas que se cruzan) y **cuenta regresiva** del bloque actual en Hoy.

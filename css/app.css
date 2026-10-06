@@ -1652,3 +1652,8 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .wk-notes span { font-size: 22px; }
 .wk-foot { text-align: center; font-size: 12.5px; color: var(--label-2); margin: 10px 0 4px; }
 .wk-img { display: block; width: 100%; border-radius: 18px; margin-top: 4px; }
+
+/* iOS 26 (WebKit 297779): al cerrar el teclado, el área visible queda desplazada y las barras fijas
+   "flotan" al hacer scroll. app.js mide el desfase y las re-ancla al área visible. */
+.tabbar, .focus-pill { translate: 0 var(--vv-bottom, 0px); }
+.navbar, .toasts { translate: 0 var(--vv-top, 0px); }

@@ -321,6 +321,31 @@ addEventListener('scroll', onScroll, { passive: true });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); syncPush(); } });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => render());
 
+/* ---------- Barras fijas en iOS 26 ----------
+   Bug de WebKit 297779: en apps de la pantalla de inicio, después de cerrar el teclado el área visible
+   queda corrida respecto de la página y las barras fijas (pestañas, barra superior) flotan al hacer scroll.
+   Se mide el desfase con visualViewport y se corrige con las variables --vv-top y --vv-bottom.
+   Con el teclado abierto no se corrige: ahí el área visible es más chica a propósito. */
+function anchorBars() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const layoutH = document.documentElement.clientHeight;
+  const keyboard = vv.height < layoutH * 0.8;
+  const top = keyboard ? 0 : Math.round(vv.offsetTop);
+  const bottom = keyboard ? 0 : Math.round(vv.offsetTop + vv.height - layoutH);
+  const root = document.documentElement.style;
+  if (root.getPropertyValue('--vv-top') !== `${top}px`) root.setProperty('--vv-top', `${top}px`);
+  if (root.getPropertyValue('--vv-bottom') !== `${bottom}px`) root.setProperty('--vv-bottom', `${bottom}px`);
+}
+window.visualViewport?.addEventListener('resize', anchorBars);
+window.visualViewport?.addEventListener('scroll', anchorBars);
+addEventListener('scroll', anchorBars, { passive: true });
+// Al cerrar el teclado, un empujón para que iOS vuelva a alinear el área visible.
+document.addEventListener('focusout', () => setTimeout(() => {
+  if (window.visualViewport?.offsetTop) window.scrollTo(window.scrollX, window.scrollY);
+  anchorBars();
+}, 120));
+
 /* ---------- Arranque ---------- */
 prune();
 applyTheme();

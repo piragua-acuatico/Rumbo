@@ -4,15 +4,15 @@ import { esc, fmtClock, keyOf } from './utils.js';
 import { morph } from './morph.js';
 import { icon } from './icons.js';
 import { haptic, toast } from './fx.js';
-import { scheduleSync } from './push.js';
+import { scheduleSync, syncPush, setFocusAway } from './push.js';
 
 let visible = false;
-// Modo árbol (estilo Forest): si sales de Rumbo más de unos segundos durante la sesión, el árbol se seca.
-const GRACE = 10e3;
+// Modo árbol: mientras te enfocas crece un árbol. Sigue creciendo con la pantalla bloqueada o si te vas
+// a otra app (una web no puede distinguir una cosa de la otra); al salir de Rumbo llegan avisos con su progreso.
 const stage = p => (p < 0.34 ? '🌱' : p < 0.67 ? '🌿' : '🌳');
 
-// Pantalla encendida mientras corre el enfoque (iOS 18.4 en adelante; si no se puede, no pasa nada).
-// Devuelve si la pantalla quedó encendida. Si la sesión se pausó mientras se pedía, se suelta enseguida.
+// Pantalla encendida mientras corre el enfoque con Rumbo abierta (iOS 18.4 en adelante; si no se puede, no pasa nada).
+// Si la sesión se pausó mientras se pedía, se suelta enseguida.
 let lock = null;
 async function keepAwake(on) {
   try {
@@ -27,45 +27,14 @@ async function keepAwake(on) {
     return !!lock;
   } catch { lock = null; return false; }
 }
-// ¿Estuviste fuera más de 10 segundos? (contando solo hasta que la sesión terminaba: quedarte fuera
-// hasta el final no hace crecer el árbol).
-const leftTooLong = x => x.strict && x.leftAt && Math.min(Date.now(), x.endsAt || Date.now()) - x.leftAt > GRACE;
-
-function wither() {
-  const x = f();
-  x.running = false; x.endsAt = null; x.dead = true; x.leftAt = null;
-  state.trees.dead++;
-  commit();
-  keepAwake(false);
-  visible = true;
-  render();
-}
+// Al salir de Rumbo con una sesión corriendo, se programan los avisos del árbol; al volver, se quitan.
 document.addEventListener('visibilitychange', () => {
   const x = f();
   if (!x || !x.running) return;
-  if (document.visibilityState === 'hidden') {
-    if (x.strict) { x.leftAt = Date.now(); save(); }
-    keepAwake(false);
-    return;
-  }
-  if (leftTooLong(x)) { wither(); return; }
-  x.leftAt = null;
-  save();
-  // Sin poder dejar la pantalla encendida, el iPhone se bloquea solo y el árbol se secaría sin culpa tuya.
-  keepAwake(true).then(on => {
-    if (on || !x.strict || !x.running) return;
-    x.strict = false;
-    save();
-    render();
-    toast('Modo árbol desactivado en esta sesión', { sub: 'Tu iPhone no deja mantener la pantalla encendida (necesita iOS 18.4)', icon: 'leaf', tint: 'c-orange', duration: 7000 });
-  });
+  const away = document.visibilityState === 'hidden';
+  if (x.strict) { setFocusAway(away); syncPush(true); }
+  keepAwake(!away);
 });
-// Si Rumbo se cerró (o se recargó) durante una sesión en modo árbol, se mira cuánto estuviste fuera.
-setTimeout(() => {
-  const x = f();
-  if (x?.running && leftTooLong(x)) wither();
-  else if (x?.running && x.leftAt) { x.leftAt = null; save(); keepAwake(true); }
-}, 0);
 let lastSecond = -1;
 const PRESETS = [15, 25, 45, 60];
 const R = 130, C = 2 * Math.PI * R;
@@ -79,10 +48,10 @@ function remaining() {
 
 export function openFocus(taskId = null) {
   const cur = f();
-  if (!cur || cur.finished || cur.dead || (taskId && cur.taskId !== taskId && !cur.running && cur.remaining === cur.total)) {
+  if (!cur || cur.finished || (taskId && cur.taskId !== taskId && !cur.running && cur.remaining === cur.total)) {
     const t = taskId ? getTask(taskId) : null;
     const total = Number(state.settings.focusDefault) * 60;
-    state.focus = { taskId: t?.id || null, title: t?.title || '', total, remaining: total, running: false, endsAt: null, finished: false, strict: !!state.settings.focusStrict, dead: false, leftAt: null };
+    state.focus = { taskId: t?.id || null, title: t?.title || '', total, remaining: total, running: false, endsAt: null, finished: false, strict: !!state.settings.focusStrict };
     save();
   }
   visible = true;
@@ -100,7 +69,6 @@ function start() {
   x.endsAt = Date.now() + x.remaining * 1000;
   x.running = true;
   x.strict = !!state.settings.focusStrict;
-  x.leftAt = null;
   haptic('heavy');
   save();
   keepAwake(true);
@@ -161,7 +129,7 @@ function finish() {
 function stop() {
   const x = f();
   keepAwake(false);
-  if (x && !x.finished && !x.dead) {
+  if (x && !x.finished) {
     const elapsed = (x.total - remaining()) / 60;
     if (elapsed >= 1) {
       logFocus(elapsed, keyOf(new Date()));
@@ -201,18 +169,6 @@ function overlayHTML() {
   const task = x.taskId ? getTask(x.taskId) : null;
   const title = task?.title || x.title;
 
-  if (x.dead) {
-    return `
-      <div class="focus-top"><span></span><button data-action="focus-stop">Cerrar</button></div>
-      <div class="focus-main">
-        <div class="focus-tree dead" aria-hidden="true">🥀</div>
-        <p class="focus-lbl">El árbol se secó</p>
-        <p class="focus-task">Saliste de Rumbo durante el enfoque. Esta sesión no cuenta, pero el siguiente árbol te espera.</p>
-        <div style="display:grid;gap:10px;width:100%;max-width:340px">
-          <button class="btn primary block" data-action="focus-again">${icon('repeat')}Plantar otro</button>
-        </div>
-      </div>`;
-  }
   if (x.finished) {
     return `
       <div class="focus-top"><span></span><button data-action="focus-stop">Cerrar</button></div>
@@ -251,8 +207,8 @@ function overlayHTML() {
       </div>
       ${fresh ? `<button class="focus-strict${state.settings.focusStrict ? ' on' : ''}" data-action="focus-strict" role="switch" aria-checked="${!!state.settings.focusStrict}">🌳 Modo árbol <span>${state.settings.focusStrict ? 'Activado' : 'Desactivado'}</span></button>` : ''}
       <p class="focus-tip">${x.running
-        ? (x.strict ? 'Modo árbol: si sales de Rumbo o bloqueas el iPhone más de 10 segundos, el árbol se seca. La pantalla se queda encendida.' : 'Deja Rumbo abierta: la pantalla se queda encendida y te avisa al terminar.')
-        : fresh && state.settings.focusStrict ? 'Mientras dure la sesión, un árbol crece en Rumbo. Si te vas a otra app, se seca.' : 'Elige cuánto tiempo y dale play. Una cosa a la vez.'}</p>
+        ? (x.strict ? 'Tu árbol sigue creciendo aunque bloquees el iPhone. Si sales de Rumbo, te aviso cómo va y cuánto falta.' : 'La pantalla se queda encendida mientras Rumbo esté abierta, y te aviso al terminar.')
+        : fresh && state.settings.focusStrict ? 'Mientras dure la sesión, crece un árbol: 🌱 → 🌿 → 🌳. Si sales de Rumbo, te llegan avisos con su progreso.' : 'Elige cuánto tiempo y dale play. Una cosa a la vez.'}</p>
     </div>`;
 }
 
@@ -281,7 +237,7 @@ export function render() {
     el.hidden = true;
     el.innerHTML = '';
   }
-  const showPill = x && !visible && !x.finished && !x.dead;
+  const showPill = x && !visible && !x.finished;
   if (showPill) {
     if (pill.hidden) { pill.innerHTML = pillHTML(); pill.hidden = false; }
     else morph(pill, pillHTML());

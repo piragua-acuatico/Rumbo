@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = {
   waterEvery: 120,
   focusGoal: 60,
   focusDefault: 25,
-  focusStrict: false, // modo árbol (estilo Forest): si sales de Rumbo durante el enfoque, el árbol se seca
+  focusStrict: false, // modo árbol: crece un árbol mientras te enfocas; si sales de Rumbo, avisos con su progreso
   nightMode: true,
   nightStart: '23:00',
   nightEnd: '06:00',
@@ -150,7 +150,9 @@ function cleanFocus(f) {
     taskId: typeof f.taskId === 'string' && RE_ID.test(f.taskId) ? f.taskId : null, title: str(f.title, 300), total,
     remaining: num(f.remaining, 0, total, total), running: !!f.running && Number.isFinite(Number(f.endsAt)),
     endsAt: Number(f.endsAt) || null, finished: !!f.finished,
-    strict: !!f.strict, dead: !!f.dead, leftAt: Number(f.leftAt) || null,
+    strict: !!f.strict,
+    // Las sesiones que quedaron "secas" en la 2.7.0 se dan por terminadas (el árbol ya no se seca).
+    ...(f.dead ? { finished: true, running: false, endsAt: null } : {}),
   };
 }
 

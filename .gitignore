@@ -6,3 +6,6 @@ node_modules/
 server/.wrangler/
 server/.dev.vars
 server/.vapid-privada.json
+
+# Documento interno del proyecto (decisiones y hábitos de Camilo): no se publica
+estado del proyecto.md
