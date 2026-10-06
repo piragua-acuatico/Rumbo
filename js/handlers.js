@@ -1,7 +1,7 @@
 // Todas las acciones de la interfaz.
 import {
   state, commit, save, getTask, tasksFor, toggleTask, deleteTask, setTaskDate, addTask, addWater,
-  ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, DEFAULT_SETTINGS,
+  ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, editableDay, DEFAULT_SETTINGS,
 } from './store.js';
 import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime, keyOf, relDate } from './utils.js';
 import { on } from './actions.js';
@@ -394,14 +394,21 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   });
 
   /* ---------- Diario: ánimo, fotos y días ---------- */
-  on('feel', el => {
-    const k = el.dataset.date;
-    const e = Number(el.dataset.e), p = Number(el.dataset.p);
-    state.journal[k] = { mood: null, note: '', photo: null, ...(state.journal[k] || {}), feel: { e, p }, mood: p };
+  // Solo se edita el día en curso (o el que se cierra en el ritual): los días pasados quedan como recuerdo.
+  const locked = k => {
+    if (editableDay(k)) return false;
+    toast('Ese día ya pasó', { sub: 'Queda guardado tal como lo viviste', icon: 'lock', tint: 'c-gray' });
+    return true;
+  };
+  on('mood', el => {
+    const k = el.dataset.date || closingDay();
+    if (locked(k)) return;
+    state.journal[k] = { note: '', photo: null, ...(state.journal[k] || {}), mood: Number(el.dataset.v), feel: null };
     haptic();
     commit();
   });
   on('photo-add', el => {
+    if (locked(el.dataset.date)) return;
     const input = document.getElementById('dayPhoto');
     input.dataset.date = el.dataset.date;
     input.click();
@@ -410,7 +417,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     const file = el.files?.[0];
     const k = el.dataset.date;
     el.value = '';
-    if (!file || !/^\d{4}-\d{2}-\d{2}$/.test(k || '')) return;
+    if (!file || !/^\d{4}-\d{2}-\d{2}$/.test(k || '') || locked(k)) return;
     try {
       const at = await savePhoto(k, file);
       state.journal[k] = { mood: null, feel: null, note: '', ...(state.journal[k] || {}), photo: at };
@@ -423,6 +430,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   });
   on('photo-remove', async el => {
     const k = el.dataset.date;
+    if (locked(k)) return;
     const i = await alertDialog({ title: '¿Quitar la foto de este día?', actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Quitar', style: 'destructive' }] });
     if (i !== 1) return;
     try {
@@ -445,6 +453,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   });
   on('input:day-note', el => {
     const k = el.dataset.date;
+    if (!editableDay(k)) return;
     state.journal[k] = { mood: null, feel: null, photo: null, ...(state.journal[k] || {}), note: el.value };
     save();
   });

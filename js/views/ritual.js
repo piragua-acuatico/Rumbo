@@ -4,7 +4,7 @@ import { fmtTime, fmtWeekday, fmtDur, nowMin, toMin, esc, plural } from '../util
 import { taskRow } from '../components.js';
 import { icon } from '../icons.js';
 import { alarmFor, alarmWindow } from '../sleep.js';
-import { feelOf, feelPad } from '../feelings.js';
+import { moodOf, moodPicker } from '../feelings.js';
 import { photoURL, photoMissing } from '../photos.js';
 
 // La foto del día dentro del paso 2: una miniatura para cambiarla, o el botón para añadirla.
@@ -81,8 +81,8 @@ export function viewRitual() {
   // 2 · Reflexión
   out.push(`
     <section class="card step-card${ok[1] ? ' ok' : ''}" data-key="st2">
-      ${stepHead(2, ok[1], '¿Cómo estuvo tu día?', feelOf(journal)?.word || 'Elige cómo te sentiste')}
-      ${feelPad(k, journal)}
+      ${stepHead(2, ok[1], '¿Cómo estuvo tu día?', moodOf(journal)?.word || 'Elige cómo te sentiste')}
+      ${moodPicker(k, journal)}
       <textarea class="reflect" data-live data-input="journal-note" rows="2" placeholder="Lo mejor de hoy, algo que aprendiste o que agradeces…">${esc(journal.note || '')}</textarea>
       ${photoRow(k)}
     </section>`);

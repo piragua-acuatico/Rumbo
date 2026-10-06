@@ -360,6 +360,9 @@ export function planTarget() {
   return nowMin() < toMin(state.settings.nightEnd) ? t : addDays(t, 1);
 }
 export const closingDay = () => addDays(planTarget(), -1);
+// Un día del diario solo se puede editar ese mismo día (o en el ritual de esa noche, aunque ya sea
+// pasada la medianoche). Después queda como recuerdo: la foto, el ánimo y la nota no cambian.
+export const editableDay = k => k === todayKey() || k === closingDay();
 
 /* ---------- Agua / enfoque ---------- */
 

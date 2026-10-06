@@ -1,12 +1,12 @@
 // Pestaña "Diario": la foto y el ánimo de cada día, el mosaico del mes,
 // los recuerdos de "hace un año" y tu año en píxeles.
-import { state } from '../store.js';
+import { state, MOODS, editableDay } from '../store.js';
 import { todayKey, parseKey, keyOf, fmtDateLong, relDate, esc, cap, plural } from '../utils.js';
 import { largeTitle, sectionHead } from '../components.js';
 import { icon } from '../icons.js';
 import { ui } from '../ui.js';
 import { openSheet } from '../sheet.js';
-import { feelOf, feelPad, FEEL_COLORS, rgb } from '../feelings.js';
+import { moodOf, moodPicker, MOOD_COLORS } from '../feelings.js';
 import { photoURL, photoMissing } from '../photos.js';
 
 const hasPhoto = k => !!state.journal[k]?.photo && !photoMissing(k);
@@ -36,7 +36,7 @@ function memory(k) {
 
 function todayCard(k) {
   const j = state.journal[k];
-  const f = feelOf(j);
+  const f = moodOf(j);
   const photo = hasPhoto(k) ? photoURL(k, 'full') : '';
   return `
     <section class="card day-card" data-key="d-today">
@@ -47,7 +47,7 @@ function todayCard(k) {
           : `<button class="day-photo add" data-action="photo-add" data-date="${k}">${icon('camera')}<b>Foto de hoy</b><span>Un momento que quieras recordar</span></button>`}
       <button class="day-body" data-action="day-open" data-date="${k}">
         <span class="diary-kicker">Hoy</span>
-        ${f ? `<span class="day-feel"><i style="background:${f.color}"></i>${f.emoji ? `${f.emoji} ` : ''}${f.word}</span>` : '<span class="day-feel muted">¿Cómo va tu día?</span>'}
+        ${f ? `<span class="day-feel"><span class="day-emoji">${f.emoji}</span>${f.word}</span>` : '<span class="day-feel muted">¿Cómo va tu día?</span>'}
         ${j?.note ? `<p class="day-note">${esc(j.note)}</p>` : `<p class="day-note muted">${f ? 'Toca para escribir algo de hoy.' : 'Esta noche, en el ritual, eliges tu ánimo y escribes qué te llevas.'}</p>`}
       </button>
     </section>`;
@@ -55,7 +55,7 @@ function todayCard(k) {
 
 function memoryCard(m) {
   const j = state.journal[m.k];
-  const f = feelOf(j);
+  const f = moodOf(j);
   return `
     <button class="card memory-card tappable-card" data-key="d-memory" data-action="day-open" data-date="${m.k}">
       ${hasPhoto(m.k) ? thumbHTML(m.k, 'mem-thumb') : `<span class="mem-thumb mem-color" style="background:${f?.color || 'var(--fill)'}">${icon('book-fill')}</span>`}
@@ -78,11 +78,11 @@ function mosaic(today) {
   for (let d = 1; d <= n; d++) {
     const k = `${ym}-${String(d).padStart(2, '0')}`;
     const j = state.journal[k];
-    const f = feelOf(j);
+    const f = moodOf(j);
     const future = k > today;
     const inner = hasPhoto(k) ? thumbHTML(k, 'mz-img') : '';
-    cells.push(future
-      ? `<span class="mz fut"><small>${d}</small></span>`
+    cells.push(future || (!hasContent(j) && !editableDay(k))
+      ? `<span class="mz${future ? ' fut' : ''}"><small>${d}</small></span>`
       : `<button class="mz${k === today ? ' today' : ''}${inner ? ' ph' : ''}" data-action="day-open" data-date="${k}" style="${f && !inner ? `background:${f.color}` : ''}" aria-label="${relDate(k)}">${inner}<small>${d}</small>${inner && f ? `<i style="background:${f.color}"></i>` : ''}</button>`);
   }
   const isNow = ym === today.slice(0, 7);
@@ -108,7 +108,7 @@ function yearPixels(today) {
     for (let d = 1; d <= 31; d++) {
       if (d > n) { px.push('<i class="x"></i>'); continue; }
       const k = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const f = feelOf(state.journal[k]);
+      const f = moodOf(state.journal[k]);
       if (f) count++;
       px.push(f ? `<i style="background:${f.color}"></i>` : `<i class="${k > today ? 'fut' : ''}"></i>`);
     }
@@ -119,7 +119,7 @@ function yearPixels(today) {
       <div class="yp-head"><b>${y} en píxeles</b><span>${plural(count, 'día', 'días')}</span></div>
       <div class="yp-grid" aria-label="Tu ánimo de cada día del año">${rows.join('')}</div>
       <div class="yp-legend">
-        ${[['red', 'Tenso'], ['yellow', 'Con energía'], ['blue', 'Bajo'], ['green', 'En calma']].map(([c, l]) => `<span><i style="background:${rgb(FEEL_COLORS[c])}"></i>${l}</span>`).join('')}
+        ${MOODS.map(m => `<span><i style="background:${MOOD_COLORS[m.v]}"></i>${m.e}</span>`).join('')}
       </div>
     </section>`;
 }
@@ -155,7 +155,7 @@ export function viewDiary() {
   if (entries.length) {
     out.push(sectionHead('Días recientes', '', 'h-days'));
     out.push(`<div class="list" data-key="d-list">${entries.map(([d, j]) => {
-      const f = feelOf(j);
+      const f = moodOf(j);
       return `
         <button class="diary-row" data-key="dr-${d}" data-action="day-open" data-date="${d}">
           ${hasPhoto(d) ? thumbHTML(d, 'dr-thumb') : `<span class="dr-thumb dr-color" style="background:${f?.color || 'var(--fill)'}"></span>`}
@@ -177,25 +177,36 @@ function renderDay() {
   const k = dayKey;
   const j = state.journal[k] || {};
   const full = hasPhoto(k) ? photoURL(k, 'full') : '';
+  const photo = full ? `<img class="ds-photo" src="${full}" alt="Foto del día">` : hasPhoto(k) ? '<div class="ds-photo ph-wait"></div>' : '';
+  if (!editableDay(k)) {
+    const m = moodOf(j);
+    return `
+      <div class="day-sheet">
+        ${photo}
+        ${m ? `<p class="ds-mood"><span>${m.emoji}</span>${m.word}</p>` : ''}
+        ${j.note ? `<p class="ds-note">${esc(j.note)}</p>` : ''}
+        ${!photo && !m && !j.note ? '<p class="ds-empty">Este día no guardaste nada.</p>' : ''}
+        <p class="ds-lock">${icon('lock')}Este día ya pasó: queda guardado tal como lo viviste.</p>
+      </div>`;
+  }
   return `
     <div class="day-sheet">
-      ${full
-        ? `<img class="ds-photo" src="${full}" alt="Foto del día">
+      ${photo
+        ? `${photo}
            <div class="ds-photo-actions">
              <button class="capsule" data-action="photo-add" data-date="${k}">${icon('camera')}Cambiar</button>
              <button class="capsule danger" data-action="photo-remove" data-date="${k}">Quitar foto</button>
            </div>`
-        : hasPhoto(k)
-          ? '<div class="ds-photo ph-wait"></div>'
-          : `<button class="day-photo add" data-action="photo-add" data-date="${k}">${icon('camera')}<b>Añadir una foto</b><span>De la galería o con la cámara</span></button>`}
-      <h4 class="ds-h">¿Cómo te sentiste?</h4>
-      ${feelPad(k, j)}
+        : `<button class="day-photo add" data-action="photo-add" data-date="${k}">${icon('camera')}<b>Añadir una foto</b><span>De la galería o con la cámara</span></button>`}
+      <h4 class="ds-h">¿Cómo estuvo tu día?</h4>
+      ${moodPicker(k, j)}
       <h4 class="ds-h">Nota</h4>
       <textarea class="reflect" data-live data-input="day-note" data-date="${k}" rows="3" placeholder="Lo mejor del día, algo que aprendiste o que agradeces…">${esc(j.note || '')}</textarea>
+      <p class="ds-lock">${icon('lock')}Puedes cambiarlo hasta que termine el día. Después queda como recuerdo.</p>
     </div>`;
 }
 
 export function openDay(k) {
   dayKey = k;
-  openSheet({ key: 'day', title: () => cap(fmtDateLong(dayKey)), render: renderDay, right: { action: 'sheet-close', icon: 'check', label: 'Listo' } });
+  openSheet({ key: 'day', title: () => cap(fmtDateLong(dayKey)), render: renderDay, auto: !editableDay(k), right: { action: 'sheet-close', icon: 'check', label: 'Listo' } });
 }

@@ -1427,22 +1427,6 @@ img.avatar-xl { box-shadow: 0 8px 26px rgba(0, 0, 0, .18); }
 .ph-wait { display: block; background: linear-gradient(100deg, var(--fill) 30%, color-mix(in srgb, var(--fill) 40%, transparent) 50%, var(--fill) 70%); background-size: 300% 100%; animation: phWait 1.4s linear infinite; }
 @keyframes phWait { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
-/* Ánimo: energía × agrado */
-.feel-pad { display: grid; justify-items: center; gap: 6px; margin: 4px 0 2px; }
-.fp-y { font-size: 12px; font-weight: 600; color: var(--label-2); letter-spacing: .02em; }
-.feel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(100%, 290px); aspect-ratio: 1; }
-.fc {
-  border-radius: 12px; background: var(--c);
-  transition: transform .25s var(--spring), opacity .2s, box-shadow .2s;
-}
-.fc:active { transform: scale(.88); }
-.fc.on { opacity: 1; transform: scale(1.08); box-shadow: 0 0 0 3px var(--card), 0 0 0 5.5px var(--c); }
-.feel-grid:has(.fc.on) .fc:not(.on) { opacity: .5; }
-.fp-x { display: flex; justify-content: space-between; width: min(100%, 290px); font-size: 12px; font-weight: 600; color: var(--label-2); }
-.feel-word { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 12px; font-size: 15px; color: var(--label-2); min-height: 24px; }
-.feel-word i { width: 14px; height: 14px; border-radius: 5px; }
-.feel-word b { font-size: 19px; color: var(--label); }
-
 /* Foto del día en el ritual */
 .photo-row { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 10px; border-radius: 16px; background: var(--fill); text-align: left; }
 .photo-row img, .photo-row .ph-wait, .photo-row .pr-ic { flex: none; width: 52px; height: 52px; border-radius: 12px; object-fit: cover; }
@@ -1525,3 +1509,13 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .capsule.danger { color: var(--c-red); }
 .day-sheet .day-photo.add { border-radius: 18px; }
 .ds-h { margin: 18px 2px 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--label-2); }
+
+/* Ánimo con caritas y días cerrados */
+.day-emoji { font-size: 30px; line-height: 1; }
+.day-sheet .moods { margin-bottom: 4px; }
+.ds-mood { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 18px 0 6px; font-size: 22px; font-weight: 700; }
+.ds-mood span { font-size: 40px; line-height: 1; }
+.ds-note { font-size: 17px; line-height: 1.5; letter-spacing: -.3px; white-space: pre-wrap; margin: 10px 4px 0; }
+.ds-empty { text-align: center; color: var(--label-2); margin: 24px 0 8px; font-size: 16px; }
+.ds-lock { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 18px 0 4px; font-size: 13px; color: var(--label-2); text-align: center; }
+.ds-lock .i { flex: none; font-size: 14px; }
