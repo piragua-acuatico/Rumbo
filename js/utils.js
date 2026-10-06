@@ -83,4 +83,6 @@ export function greeting(name) {
 }
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// El contenido se desplaza dentro de #scroll (la página en sí no se mueve).
+export const scroller = () => document.getElementById('scroll');
 export const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

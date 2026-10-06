@@ -1,7 +1,7 @@
 // Pestaña "CrossFit": levantamientos (PR, 1RM y nivel), complex, entrenos y cuerpo.
 // Pesos de barra en libras, peso corporal en kg y medidas en cm.
 import { state, commit } from '../store.js';
-import { todayKey, addDays, parseKey, relDate, esc, plural, cap, fmtDateLong } from '../utils.js';
+import { todayKey, addDays, parseKey, relDate, esc, plural, cap, fmtDateLong, scroller } from '../utils.js';
 import { largeTitle, sectionHead, emptyState, segmented, stepper } from '../components.js';
 import { icon } from '../icons.js';
 import { ui } from '../ui.js';
@@ -474,7 +474,7 @@ export async function cfAction(name, el) {
       commit();
       return;
     }
-    case 'cf-profile-edit': ui.cfProfile = true; commit(); scrollTo({ top: 0, behavior: 'smooth' }); return;
+    case 'cf-profile-edit': ui.cfProfile = true; commit(); scroller().scrollTo({ top: 0, behavior: 'smooth' }); return;
 
     case 'cf-lift-new': if (d.lift) closeSheet(true); openLiftLog(d.lift); return;
     case 'cf-lift-open': haptic(); openLift(d.lift); return;

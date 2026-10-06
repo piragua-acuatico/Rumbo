@@ -3,7 +3,7 @@ import {
   state, commit, save, getTask, tasksFor, toggleTask, deleteTask, setTaskDate, addTask, addWater,
   ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, editableDay, DEFAULT_SETTINGS,
 } from './store.js';
-import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime, keyOf, relDate } from './utils.js';
+import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime, keyOf, relDate, scroller } from './utils.js';
 import { on } from './actions.js';
 import { ui } from './ui.js';
 import { haptic, toast, confetti, animateOut, pop } from './fx.js';
@@ -517,7 +517,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     } catch { /* sin almacenamiento */ }
     if (milestone) confetti({ originY: 0.3 });
     toast(milestone ? `🔥 ¡${streak} días seguidos!` : 'Mañana está listo', { sub: milestone ? 'Un hito en tu racha. Ahora, a descansar' : streak > 1 ? `🔥 ${streak} días seguidos` : 'Ahora, a descansar', icon: 'moon-fill', tint: 'c-indigo' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scroller().scrollTo({ top: 0, behavior: 'smooth' });
   });
   on('unfinish-day', () => { delete state.planned[planTarget()]; commit(); });
 

@@ -33,7 +33,8 @@ export function openSheet(opts) {
   refreshSheet();
 
   const app = document.getElementById('app');
-  app.style.transformOrigin = `50% ${scrollY + innerHeight / 2}px`;
+  const sc = document.getElementById('scroll');
+  app.style.transformOrigin = `50% ${sc.scrollTop + sc.clientHeight / 2}px`;
   document.documentElement.classList.add('sheet-open');
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('open')));
   enableDrag(current);

@@ -1,6 +1,6 @@
 // Rumbo — arranque, navegación, render y eventos globales.
 import { state, subscribe, prune, getTask, tasksFor, waterSlots, planTarget, loadProblem } from './store.js';
-import { todayKey, nowMin, toMin, fmtTime, esc, reducedMotion } from './utils.js';
+import { todayKey, nowMin, toMin, fmtTime, esc, reducedMotion, scroller } from './utils.js';
 import { morph } from './morph.js';
 import { run } from './actions.js';
 import { ui, parseRoute } from './ui.js';
@@ -141,7 +141,7 @@ function render() {
    back() vuelve (desliza hacia la derecha) y cambiar de pestaña hace un fundido. */
 let navSeq = 0;
 function navigate(next, dir) {
-  ui.scroll[routeKey()] = scrollY;
+  ui.scroll[routeKey()] = scroller().scrollTop;
   // Una subpantalla que no existe (o fuera del Perfil) lleva a la raíz de la pestaña.
   const tab = next.tab || ui.tab;
   if (next.sub && !(tab === 'perfil' && PROFILE_PAGES[next.sub])) next.sub = null;
@@ -150,7 +150,7 @@ function navigate(next, dir) {
     Object.assign(ui, next);
     history.replaceState(null, '', `#${ui.tab}${ui.sub ? `/${ui.sub}` : ''}`);
     render();
-    window.scrollTo(0, dir === 'push' ? 0 : ui.scroll[routeKey()] || 0);
+    scroller().scrollTo(0, dir === 'push' ? 0 : ui.scroll[routeKey()] || 0);
     onScroll();
   };
   const root = document.documentElement;
@@ -179,7 +179,7 @@ function go(target, { seg } = {}) {
   const sameTab = r.tab === ui.tab;
   if (sameTab && r.sub === ui.sub) {
     if (r.planSeg && r.planSeg !== ui.planSeg) { ui.planSeg = r.planSeg; render(); }
-    else window.scrollTo({ top: 0, behavior: 'smooth' });
+    else scroller().scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
   const next = { tab: r.tab, sub: r.sub };
@@ -200,7 +200,7 @@ function back() {
 }
 
 function onScroll() {
-  document.body.classList.toggle('scrolled', scrollY > 52);
+  document.body.classList.toggle('scrolled', scroller().scrollTop > 52);
 }
 
 // Deslizar desde el borde izquierdo para volver, como en iOS.
@@ -317,34 +317,27 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   run(`submit:${name}`, e.target, e);
 });
-addEventListener('scroll', onScroll, { passive: true });
+scroller().addEventListener('scroll', onScroll, { passive: true });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); syncPush(); } });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => render());
 
-/* ---------- Barras fijas en iOS 26 ----------
-   Bug de WebKit 297779: en apps de la pantalla de inicio, después de cerrar el teclado el área visible
-   queda corrida respecto de la página y las barras fijas (pestañas, barra superior) flotan al hacer scroll.
-   Se mide el desfase con visualViewport y se corrige con las variables --vv-top y --vv-bottom.
-   Con el teclado abierto no se corrige: ahí el área visible es más chica a propósito. */
-function anchorBars() {
+/* ---------- La página siempre quieta ----------
+   El contenido se desplaza dentro de #scroll; la página (window) debe quedarse siempre arriba.
+   iOS a veces la deja corrida después de cerrar el teclado (bug de WebKit 297779) y eso hace
+   "flotar" las barras fijas: si pasa, se devuelve a su lugar. Con el teclado abierto no se toca. */
+function resetPage() {
   const vv = window.visualViewport;
-  if (!vv) return;
-  const layoutH = document.documentElement.clientHeight;
-  const keyboard = vv.height < layoutH * 0.8;
-  const top = keyboard ? 0 : Math.round(vv.offsetTop);
-  const bottom = keyboard ? 0 : Math.round(vv.offsetTop + vv.height - layoutH);
-  const root = document.documentElement.style;
-  if (root.getPropertyValue('--vv-top') !== `${top}px`) root.setProperty('--vv-top', `${top}px`);
-  if (root.getPropertyValue('--vv-bottom') !== `${bottom}px`) root.setProperty('--vv-bottom', `${bottom}px`);
+  const keyboard = vv && vv.height < document.documentElement.clientHeight * 0.8;
+  if (!keyboard && (window.scrollY || window.scrollX || vv?.offsetTop)) window.scrollTo(0, 0);
 }
-window.visualViewport?.addEventListener('resize', anchorBars);
-window.visualViewport?.addEventListener('scroll', anchorBars);
-addEventListener('scroll', anchorBars, { passive: true });
-// Al cerrar el teclado, un empujón para que iOS vuelva a alinear el área visible.
-document.addEventListener('focusout', () => setTimeout(() => {
-  if (window.visualViewport?.offsetTop) window.scrollTo(window.scrollX, window.scrollY);
-  anchorBars();
-}, 120));
+window.visualViewport?.addEventListener('resize', resetPage);
+document.addEventListener('focusout', () => setTimeout(resetPage, 150));
+addEventListener('scroll', resetPage, { passive: true });
+
+// Tocar la barra superior sube al inicio (el toque en la hora del iPhone ya no lo hace: la página no se desplaza).
+document.querySelector('.navbar')?.addEventListener('click', e => {
+  if (!e.target.closest('button')) scroller().scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
+});
 
 /* ---------- Arranque ---------- */
 prune();

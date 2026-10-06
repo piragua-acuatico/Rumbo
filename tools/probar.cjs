@@ -88,6 +88,15 @@ async function main() {
     for (const tab of ['hoy', 'plan', 'diario', 'crossfit', 'perfil']) {
       await click(`#tabs [data-tab="${tab}"]`);
       await check(`Pestaña ${tab}`);
+      // La barra de pestañas no se mueve al desplazar (la página nunca se desplaza: solo #scroll).
+      const moved = await js(`(async () => {
+        const at = () => Math.round(document.querySelector('.tabbar').getBoundingClientRect().bottom);
+        const sc = document.getElementById('scroll'), before = at();
+        sc.scrollTo(0, 99999); await new Promise(r => setTimeout(r, 150));
+        const after = at(); sc.scrollTo(0, 0);
+        return before !== after || scrollY !== 0;
+      })()`);
+      if (moved) problems.push(`Pestaña ${tab}: la barra de pestañas se movió al desplazar`);
     }
     // Plan: las dos mitades (ritual y pendientes).
     await click('#tabs [data-tab="plan"]');

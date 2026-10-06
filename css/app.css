@@ -88,6 +88,9 @@
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* La página no se desplaza nunca: así las barras fijas no "flotan" en iOS (bug de WebKit 297779).
+   Lo que se desplaza es #scroll, que ocupa toda la pantalla. */
+html, body { height: 100%; overflow: hidden; }
 html {
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
@@ -96,7 +99,6 @@ html {
 html.sheet-open { background: #000; }
 body {
   margin: 0;
-  min-height: 100vh;
   color: var(--label);
   font: 400 17px/1.29 var(--font);
   letter-spacing: -.41px;
@@ -120,10 +122,16 @@ p { margin: 0; }
 b, strong { font-weight: 600; }
 .num { font-family: var(--font-round); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
+#scroll {
+  position: fixed; inset: 0;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
 #app {
   position: relative;
   max-width: 620px;
-  min-height: 100vh;
+  min-height: 100%;
   margin: 0 auto;
   padding: var(--safe-t) 16px calc(var(--tabbar-bottom) + 110px);
   background: var(--bg);
@@ -156,7 +164,7 @@ html.sheet-open #app {
   transform: translateY(6px); opacity: 0;
   transition: transform .35s var(--ease-out), opacity .25s ease;
 }
-body.scrolled .navbar { opacity: 1; }
+body.scrolled .navbar { opacity: 1; pointer-events: auto; }
 body.scrolled #navTitle { transform: none; opacity: 1; }
 html.sheet-open .navbar { opacity: 0; }
 
@@ -1652,8 +1660,3 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .wk-notes span { font-size: 22px; }
 .wk-foot { text-align: center; font-size: 12.5px; color: var(--label-2); margin: 10px 0 4px; }
 .wk-img { display: block; width: 100%; border-radius: 18px; margin-top: 4px; }
-
-/* iOS 26 (WebKit 297779): al cerrar el teclado, el área visible queda desplazada y las barras fijas
-   "flotan" al hacer scroll. app.js mide el desfase y las re-ancla al área visible. */
-.tabbar, .focus-pill { translate: 0 var(--vv-bottom, 0px); }
-.navbar, .toasts { translate: 0 var(--vv-top, 0px); }
