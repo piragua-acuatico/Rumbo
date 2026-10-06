@@ -1,7 +1,7 @@
 // Guarda la app en el teléfono para que abra sin internet y se actualice sola.
 // VERSION la cambia `node tools/publicar.cjs` en cada publicación: al cambiar este
 // archivo, el iPhone detecta la versión nueva y la instala.
-const VERSION = '2.5.1';
+const VERSION = '2.6.0';
 const CACHE = `rumbo-${VERSION}`;
 const ASSETS = [
   './',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/app.js',
   './js/components.js',
   './js/config.js',
+  './js/crossfit.js',
   './js/feelings.js',
   './js/focus.js',
   './js/fx.js',

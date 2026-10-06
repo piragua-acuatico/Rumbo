@@ -21,6 +21,7 @@ import { enablePush, disablePush, testPush } from './push.js';
 import { savePhoto, deletePhoto, clearPhotos, exportPhotos, importPhotos, photoKeys } from './photos.js';
 import { zip, unzip, isZip } from './zip.js';
 import { openDay } from './views/diary.js';
+import { cfAction, CF_ACTIONS } from './views/crossfit.js';
 import { setAlarm, alarmsOff, alarmWindow, testAlarm, goToBed, wakeUpNow, openMission, missionAction, alarmFor, wakeTimeFor, backupTime, at } from './sleep.js';
 
 const taskOf = el => getTask(el.closest('[data-id]')?.dataset.id);
@@ -290,7 +291,15 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     const keys = new Set(await photoKeys());
     let changed = false;
     for (const [k, j] of Object.entries(state.journal)) if (j.photo && !keys.has(k)) { j.photo = null; changed = true; }
+    for (const e of state.cf.body) if (e.photo && !keys.has(`cuerpo-${e.date}`)) { e.photo = null; changed = true; }
     for (const k of keys) {
+      const body = /^cuerpo-(\d{4}-\d{2}-\d{2})$/.exec(k);
+      if (body) {
+        let e = state.cf.body.find(x => x.date === body[1]);
+        if (!e) state.cf.body.push(e = { id: uid(), date: body[1], kg: null, waist: null, neck: null, hip: null, photo: null });
+        if (!e.photo) { e.photo = Date.now(); changed = true; }
+        continue;
+      }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
       const j = state.journal[k] || (state.journal[k] = { mood: null, feel: null, note: '', photo: null });
       if (!j.photo) { j.photo = Date.now(); changed = true; }
@@ -309,7 +318,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
       if (!json) throw new Error('formato');
       data = JSON.parse(new TextDecoder().decode(json[1]));
       for (const [name, d] of files) {
-        const m = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.jpe?g$/i.exec(name);
+        const m = /(?:^|\/)((?:cuerpo-)?\d{4}-\d{2}-\d{2})\.jpe?g$/i.exec(name);
         if (m && d[0] === 0xFF && d[1] === 0xD8) photos.push({ k: m[1], data: d });
       }
     } else {
@@ -392,6 +401,9 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     addWater(-ml);
     haptic();
   });
+
+  /* ---------- CrossFit ---------- */
+  for (const a of CF_ACTIONS) on(a, el => cfAction(a, el));
 
   /* ---------- Diario: ánimo, fotos y días ---------- */
   // Solo se edita el día en curso (o el que se cierra en el ritual): los días pasados quedan como recuerdo.

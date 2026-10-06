@@ -10,7 +10,7 @@ Cinco pestañas: **Hoy · Plan · Diario · CrossFit · Perfil**.
   - **Mañana:** el ritual de la noche en 4 pasos: cerrar el día, ánimo, nota y foto del día, plan con tus 3 importantes y **despertador** (pone la alarma del iPhone). Al final, "Terminar el día" suma a tu racha.
   - **Pendientes:** la bandeja de lo que aún no tiene día (con filtros por categoría) y las tareas de los próximos días.
 - **Diario:** la foto y el ánimo de cada día (cuadrícula de energía × agrado, con 25 emociones), tu nota, el mosaico del mes, "hace un año" y tu año en píxeles. Las fotos se guardan comprimidas en el teléfono (IndexedDB).
-- **CrossFit:** vista previa. El módulo completo llega en la Fase 5.
+- **CrossFit:** levantamientos en lb con historial, PR, 1RM (real o estimado con Epley, nunca en olímpicos) y tu nivel frente a 162 crossfitters (Meier y otros, 2021, CC BY); complex; las Girls y 5 Héroes con su descripción y cargas Rx de crossfit.com; y Cuerpo: peso en kg, medidas en cm, % de grasa (Ejército de EE. UU. 2023, con Marina y RFM como segunda opinión, categorías ACE), cintura/estatura, IMC y fotos de progreso. Las fuentes están en `js/crossfit.js`.
 - **Perfil:** tu tarjeta (foto, nombre, racha) y las secciones, cada una con su pantalla:
   - Estadísticas, Notificaciones, Agua, Enfoque y Sueño.
   - Planificación y modo noche, y Rutinas.
@@ -34,6 +34,7 @@ node tools/serve.cjs
 ```
 - App: http://localhost:5173
 - Demo con datos de ejemplo (solo funciona en localhost): http://localhost:5173/tools/demo.html?tab=hoy&theme=dark
+  - Con `cf=1` carga un historial de CrossFit.
   - Con `photos=1` carga fotos de ejemplo en el diario.
   - `tab` acepta `hoy`, `plan`, `diario`, `crossfit`, `perfil` o una subpantalla como `perfil/agua`.
   - Con `planned=0` se ve el ritual sin terminar.
@@ -63,6 +64,7 @@ GitHub Pages lo publica en 1 o 2 minutos. La próxima vez que abras Rumbo en el 
 - `js/sheets.js` y `js/sheet.js`: hojas modales.
 - `js/push.js` y `js/config.js`: notificaciones (suscripción, avisos cifrados y conexión con el servidor).
 - `js/photos.js`, `js/zip.js` y `js/feelings.js`: fotos del diario (IndexedDB), copias .zip con fotos y la cuadrícula de ánimo.
+- `js/crossfit.js`: catálogo de levantamientos y benchmarks, y los cálculos (1RM, nivel, % de grasa), con sus fuentes.
 - `js/sleep.js`: despertador con Atajos, "me voy a dormir", la misión y el registro de sueño.
 - `js/focus.js`, `js/night.js`, `js/onboarding.js`, `js/swipe.js`, `js/parse.js`, `js/update.js` y `js/version.js`.
 - `sw.js`: funcionamiento sin conexión y notificaciones. Su lista de archivos la regenera `publicar`.

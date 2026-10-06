@@ -73,7 +73,23 @@
       s.sleep = { alarm: null, bed: null, log: {} };
       for (let i = 0; i < 6; i++) {
         const k = add(-i), b = beds[i], w = wakes[i];
+        if (at(k, w[0], w[1]) > Date.now()) continue;
         s.sleep.log[k] = { bed: b[0] < 12 ? at(k, b[0], b[1]) : at(add(-i - 1), b[0], b[1]), wake: at(k, w[0], w[1]), errors: i % 3 === 0 ? 1 : 0, secs: 70 + i * 9 };
+      }
+      // cf=1: CrossFit con historial (hombre, 178 cm).
+      if (p.get('cf') === '1') {
+        let n = 0;
+        const L = (lift, d, lb, reps) => ({ id: 'l' + (++n), lift, date: add(d), lb, reps, note: '' });
+        s.cf = {
+          profile: { sex: 'm', heightCm: 178 },
+          lifts: [L('deadlift', -60, 315, 1), L('deadlift', -30, 335, 1), L('deadlift', -3, 345, 2), L('backsquat', -40, 255, 3), L('backsquat', -10, 275, 1),
+            L('bench', -20, 205, 5), L('press', -15, 135, 3), L('snatch', -25, 155, 1), L('snatch', -5, 165, 1), L('cleanjerk', -8, 215, 1), L('frontsquat', -12, 225, 2)],
+          complexes: [{ id: 'c1', name: 'Clean + Front squat + Jerk', date: add(-18), lb: 185, note: '' }, { id: 'c2', name: 'Clean + Front squat + Jerk', date: add(-4), lb: 195, note: '' }],
+          wods: [{ id: 'w1', wod: 'fran', date: add(-50), rx: false, secs: 412, note: '' }, { id: 'w2', wod: 'fran', date: add(-9), rx: true, secs: 278, note: '' },
+            { id: 'w3', wod: 'cindy', date: add(-14), rx: true, rounds: 19, reps: 8, note: '' }, { id: 'w4', wod: 'murph', date: add(-35), rx: false, secs: 2950, note: '' },
+            { id: 'w5', wod: 'grace', date: add(-6), rx: true, secs: 215, note: '' }],
+          body: [[-90, 86.4, 94], [-60, 85.1, 92.5], [-30, 83.9, 91], [-2, 82.6, 89.5]].map(([d, kg, waist], i) => ({ id: 'b' + i, date: add(d), kg, waist, neck: 39, hip: null, photo: null })),
+        };
       }
       // alarm=-1: la alarma sonó hace 1 minuto (la misión aparece); alarm=30: suena en 30 minutos.
       if (p.get('alarm')) {

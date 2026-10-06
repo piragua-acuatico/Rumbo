@@ -58,6 +58,9 @@ function fresh() {
     focusLog: {},     // fecha: minutos
     journal: {},      // fecha: {mood (1-5), feel {e, p} energía × agrado, note, photo (cuándo se guardó la foto)}
     lastBackup: null, // cuándo se hizo la última copia de seguridad
+    cf: { profile: { sex: null, heightCm: null }, lifts: [], complexes: [], wods: [], body: [] },
+    // CrossFit: lifts {id, lift, date, lb, reps, note} · complexes {id, name, date, lb, note}
+    //           wods {id, wod, date, rx, secs | rounds + reps | reps, note} · body {id, date, kg, waist, neck, hip, photo}
     planned: {},      // fecha planeada: timestamp de cuando se cerró el ritual
     wakeFor: {},      // fecha: hora de despertar elegida en el ritual
     guide: {},
@@ -177,6 +180,50 @@ function cleanJournal(j) {
   };
 }
 
+// CrossFit: cada registro se valida (pesos en lb, peso corporal en kg, medidas en cm).
+const LIFT_IDS = ['deadlift', 'backsquat', 'frontsquat', 'ohs', 'bench', 'press', 'pushpress', 'thruster', 'snatch', 'powersnatch', 'clean', 'powerclean', 'cleanjerk', 'jerk'];
+const WOD_IDS = ['fran', 'grace', 'helen', 'diane', 'elizabeth', 'isabel', 'jackie', 'karen', 'nancy', 'annie', 'angie', 'barbara', 'chelsea', 'cindy', 'mary', 'nicole', 'eva', 'kelly', 'linda', 'lynne', 'amanda', 'murph', 'dt', 'jt', 'michael', 'badger'];
+// Tipo de resultado de cada benchmark (el resto es "por tiempo").
+const WOD_SCORE = { cindy: 'amrap', mary: 'amrap', chelsea: 'rounds', nicole: 'reps', lynne: 'reps' };
+const half = (v, min, max) => { const n = Math.round(Number(v) * 2) / 2; return Number.isFinite(n) && n >= min && n <= max ? n : null; };
+const list = (v, fn, max = 5000) => (Array.isArray(v) ? v : []).slice(0, max).map(fn).filter(Boolean);
+function cleanCF(x) {
+  x = obj(x);
+  const p = obj(x.profile);
+  return {
+    profile: { sex: ['m', 'f'].includes(p.sex) ? p.sex : null, heightCm: half(p.heightCm, 120, 230) },
+    lifts: list(x.lifts, e => {
+      e = obj(e);
+      const lb = half(e.lb, 1, 1500), reps = Number.isInteger(Number(e.reps)) && e.reps >= 1 && e.reps <= 50 ? Number(e.reps) : null;
+      return LIFT_IDS.includes(e.lift) && date(e.date) && lb && reps ? { id: id(e.id), lift: e.lift, date: e.date, lb, reps, note: str(e.note, 300) } : null;
+    }),
+    complexes: list(x.complexes, e => {
+      e = obj(e);
+      const lb = half(e.lb, 1, 1500), name = str(e.name, 120).trim();
+      return name && date(e.date) && lb ? { id: id(e.id), name, date: e.date, lb, note: str(e.note, 300) } : null;
+    }),
+    wods: list(x.wods, e => {
+      e = obj(e);
+      if (!WOD_IDS.includes(e.wod) || !date(e.date)) return null;
+      const n = (v, max) => (Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= max ? Number(v) : null);
+      const out = { id: id(e.id), wod: e.wod, date: e.date, rx: !!e.rx, note: str(e.note, 300) };
+      const type = WOD_SCORE[e.wod] || 'time';
+      if (type === 'time' && n(e.secs, 6 * 3600)) out.secs = n(e.secs, 6 * 3600);
+      else if (type === 'amrap' && n(e.rounds, 999) != null) { out.rounds = n(e.rounds, 999); out.reps = n(e.reps, 999) ?? 0; }
+      else if (type === 'rounds' && n(e.rounds, 30) != null) out.rounds = n(e.rounds, 30);
+      else if (type === 'reps' && n(e.reps, 99999) != null) out.reps = n(e.reps, 99999);
+      else return null;
+      return out;
+    }),
+    body: list(x.body, e => {
+      e = obj(e);
+      if (!date(e.date)) return null;
+      const out = { id: id(e.id), date: e.date, kg: half(e.kg, 25, 300), waist: half(e.waist, 40, 250), neck: half(e.neck, 20, 70), hip: half(e.hip, 50, 250), photo: ts(e.photo) };
+      return out.kg || out.waist || out.photo ? out : null;
+    }, 3000),
+  };
+}
+
 function migrate(data) {
   data = obj(data);
   const v1 = !data.version || data.version < 2;
@@ -204,6 +251,7 @@ function migrate(data) {
   s.profile = cleanProfile(data.profile, s.tasks);
   s.sleep = cleanSleep(data.sleep);
   s.lastBackup = ts(data.lastBackup);
+  s.cf = cleanCF(data.cf);
   return s;
 }
 

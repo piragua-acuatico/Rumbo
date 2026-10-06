@@ -37,4 +37,7 @@ export const ui = {
   scroll: {},
   // Diario: mes que muestra el mosaico ("2026-10"); null = el mes actual.
   diaryMonth: null,
+  // CrossFit: sección (lifts, wods o body) y si se están editando tus datos.
+  cfSeg: 'lifts',
+  cfProfile: false,
 };
