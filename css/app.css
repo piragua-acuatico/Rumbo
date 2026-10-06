@@ -1568,3 +1568,37 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .cf-compare figure { flex: 1; margin: 0; }
 .cf-compare img, .cf-compare .ph-wait { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; }
 .cf-compare figcaption { font-size: 13px; color: var(--label-2); text-align: center; margin-top: 6px; }
+
+/* CrossFit · Entrenos */
+.cf-week { padding: 16px; }
+.cf-week-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.cf-week-head span { display: block; font-size: 13px; color: var(--label-2); }
+.cf-week-head b { display: block; font: 800 32px/1.1 var(--font-round); letter-spacing: -.3px; }
+.cf-week-head b small { font-size: 16px; font-weight: 600; color: var(--label-2); }
+.cf-goal { text-align: right; }
+.cf-goal span { margin-bottom: 4px; }
+.cf-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 14px 0 10px; text-align: center; font-size: 12px; font-weight: 600; color: var(--label-2); }
+.cf-days span { display: grid; justify-items: center; gap: 4px; }
+.cf-days i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--fill); color: #fff; font-size: 17px; }
+.cf-days .on i { background: linear-gradient(145deg, #FF9F0A, #FF375F); }
+.cf-days .on i .i { stroke-width: 3; }
+.cf-days .today i { box-shadow: 0 0 0 2px var(--accent); }
+.cf-days .fut { opacity: .45; }
+.cf-streak { font-size: 15px; font-weight: 600; margin: 4px 0 12px; }
+.cf-weeks { position: relative; height: 84px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; align-items: end; padding-bottom: 18px; }
+.cf-weeks > div { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.cf-weeks i { display: block; width: 100%; max-width: 26px; min-height: 3px; border-radius: 6px 6px 3px 3px; background: color-mix(in srgb, var(--c-orange) 35%, transparent); }
+.cf-weeks .ok i { background: linear-gradient(180deg, #FF9F0A, #FF375F); }
+.cf-weeks .cur i { box-shadow: 0 0 0 2px var(--accent); }
+.cf-weeks span { position: absolute; bottom: -18px; font-size: 11px; color: var(--label-2); font-weight: 600; }
+.cf-weeks .goal-line { position: absolute; left: 0; right: 0; bottom: calc(18px + (100% - 18px) * var(--g)); border-top: 1.5px dashed var(--label-3); pointer-events: none; z-index: 1; }
+.cf-ses .rpe { flex: none; }
+.rpe { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; font: 700 14px/1 var(--font-round); color: #fff; }
+.rpe-1 { background: #34C759; } .rpe-2 { background: #9BD43A; } .rpe-3 { background: #FFB800; } .rpe-4 { background: #FF8A00; } .rpe-5 { background: #FF453A; }
+.rpe-pick { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-bottom: 12px; }
+.rpe-pick .rpe { width: auto; height: 38px; opacity: .45; transition: transform .2s var(--spring), opacity .2s; }
+.rpe-pick .rpe.on { opacity: 1; transform: scale(1.1); }
+.rpe-word { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--label); margin-left: 6px; }
+.cf-result { display: block; width: 100%; height: 48px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--label); font: inherit; font-size: 17px; outline: none; -webkit-appearance: none; appearance: none; }
+.cf-wod-text { min-height: 110px; }
+.sheet .reflect { background: var(--sheet-card, var(--card)); }

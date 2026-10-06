@@ -1,8 +1,8 @@
-// Pestaña "CrossFit": levantamientos (PR, 1RM y nivel), complex, benchmarks y cuerpo.
+// Pestaña "CrossFit": levantamientos (PR, 1RM y nivel), complex, entrenos y cuerpo.
 // Pesos de barra en libras, peso corporal en kg y medidas en cm.
 import { state, commit } from '../store.js';
-import { todayKey, relDate, esc, plural, cap, fmtDateLong } from '../utils.js';
-import { largeTitle, sectionHead, emptyState, segmented } from '../components.js';
+import { todayKey, addDays, parseKey, relDate, esc, plural, cap, fmtDateLong } from '../utils.js';
+import { largeTitle, sectionHead, emptyState, segmented, stepper } from '../components.js';
 import { icon } from '../icons.js';
 import { ui } from '../ui.js';
 import { openSheet, closeSheet, refreshSheet, alertDialog } from '../sheet.js';
@@ -10,7 +10,6 @@ import { haptic, toast } from '../fx.js';
 import { savePhoto, deletePhoto, photoURL, photoMissing } from '../photos.js';
 import {
   LIFTS, liftOf, COMPLEX_IDEAS, oneRM, bestOneRM, MAX_EST_REPS, crossfitPercentile, meierMarks, MEIER_CITE, toKg,
-  WODS, wodOf, wodURL, scoreValue, fmtScore, wodTier, wodPercentile,
   fatDoD, fatNavy, fatRFM, aceCategory, whtr, bmi, clampFat,
 } from '../crossfit.js';
 
@@ -230,88 +229,92 @@ export function openComplex(name) {
 }
 
 /* =========================================================
-   Benchmarks
+   Entrenos: tu diario del box (el WOD del día, tu resultado y qué tan duro fue).
+   Semanas de lunes a domingo; la meta semanal y la racha de semanas cumpliéndola.
    ========================================================= */
-const resultsOf = wodId => cf().wods.filter(r => r.wod === wodId).sort((a, b) => b.date.localeCompare(a.date));
-function bestResult(w, list, rxOnly = false) {
-  return list.filter(r => !rxOnly || r.rx).reduce((a, r) => (!a || scoreValue(w, r) > scoreValue(w, a) ? r : a), null);
-}
-// La marca que se muestra: la mejor Rx; si nunca lo hiciste Rx, la mejor escalada.
-const shownBest = (w, list) => bestResult(w, list, true) || bestResult(w, list);
+const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+// Esfuerzo percibido de la sesión (escala de 1 a 10, como el RPE de sesión de Foster, 2001).
+const RPE_LABEL = { 1: 'Muy fácil', 2: 'Fácil', 3: 'Moderado', 4: 'Algo duro', 5: 'Duro', 6: 'Duro', 7: 'Muy duro', 8: 'Muy duro', 9: 'Casi al máximo', 10: 'Al máximo' };
+const weekStart = k => addDays(k, -((parseKey(k).getDay() + 6) % 7));
+const sessionsSorted = () => cf().sessions.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+const daysTrained = (from, to) => new Set(cf().sessions.filter(s => s.date >= from && s.date <= to).map(s => s.date)).size;
 
-function wodsView() {
-  const row = w => {
-    const list = resultsOf(w.id);
-    const best = shownBest(w, list);
-    return `
-      <button class="cf-row" data-key="cfw-${w.id}" data-action="cf-wod-open" data-wod="${w.id}">
-        <span class="cf-row-main"><b>${w.name}</b><small>${esc(w.lines.slice(1, 3).join(' · '))}</small></span>
-        <span class="cf-row-val">${best ? `<b>${fmtScore(w, best)}</b><small>${best.rx ? 'Rx' : 'Scaled'}</small>` : '<small class="muted">Sin intentos</small>'}</span>
-        <span class="cell-chev">${icon('chevron-right')}</span>
-      </button>`;
-  };
-  return `
-    ${sectionHead('Las Girls', '', 'cf-h-girls')}
-    <div class="list" data-key="cf-girls">${WODS.filter(w => !w.hero).map(row).join('')}</div>
-    ${sectionHead('Héroes', '', 'cf-h-heroes')}
-    <div class="list" data-key="cf-heroes">${WODS.filter(w => w.hero).map(row).join('')}</div>
-    <p class="group-foot" data-key="cf-wod-foot">${icon('info')} Los workouts y sus cargas Rx (hombre / mujer) son los publicados en crossfit.com. Rumbo es una app personal y no está afiliada a CrossFit.</p>`;
-}
-
-const wodDraft = { wod: '', date: '', rx: true, min: '', sec: '', rounds: '', reps: '' };
-let wodOpen = null;
-function renderWod() {
-  const w = wodOf(wodOpen);
-  const list = resultsOf(w.id);
-  const best = shownBest(w, list);
-  const d = wodDraft;
-  const input = (f, ph, label, mode = 'numeric') => `<input class="pill-input num-input" type="number" inputmode="${mode}" min="0" placeholder="${ph}" value="${esc(d[f])}" data-input="cf-wod-field" data-f="${f}" aria-label="${label}">`;
-  const scoreInputs = w.score === 'time'
-    ? `<span class="cf-time">${input('min', 'min', 'Minutos')}<b>:</b>${input('sec', 'seg', 'Segundos')}</span>`
-    : w.score === 'amrap' ? `<span class="cf-time">${input('rounds', 'rondas', 'Rondas')}<b>+</b>${input('reps', 'reps', 'Repeticiones extra')}</span>`
-      : w.score === 'rounds' ? input('rounds', 'rondas', 'Rondas') : input('reps', 'reps', 'Repeticiones');
-  const s = sex();
-  const tier = best?.rx ? wodTier(w, best) : null;
-  const pct = best && best.rx && best.secs && s ? wodPercentile(w, s, best.secs) : null;
-  return `
-    <div class="cf-detail">
-      <div class="cf-wod-card">
-        ${w.lines.map((x, i) => `<p class="${i ? '' : 'lead'}">${esc(x)}</p>`).join('')}
-        <a class="cf-src" href="${wodURL(w)}" target="_blank" rel="noopener">${icon('link')}Ver en crossfit.com</a>
-      </div>
-      ${best ? `<div class="cf-big"><b>${fmtScore(w, best)}</b><span>tu mejor marca · ${best.rx ? 'Rx' : 'Scaled'} · ${relDate(best.date).toLowerCase()}</span></div>` : ''}
-      ${tier ? `<p class="cf-hint">Nivel según crossfit.com: <b>${tier}</b> (Élite &lt; 3 min · Rx &lt; 5 · Intermedio &lt; 10 · Principiante &lt; 12)</p>` : ''}
-      ${pct != null ? `<p class="cf-hint">Más rápido que el ${pct} % de los crossfitters del estudio de Meier (2021), estimado con el promedio y la dispersión que reporta.</p>` : ''}
-      <h4 class="ds-h">Registrar resultado</h4>
-      <div class="group cf-form">
-        <div class="cell"><span class="cell-label">${w.score === 'time' ? 'Tiempo' : w.score === 'amrap' ? 'Rondas + reps' : w.score === 'rounds' ? 'Rondas completas' : 'Repeticiones totales'}</span>${scoreInputs}</div>
-        <div class="cell"><span class="cell-label">Rx<small>${d.rx ? 'Con las cargas y movimientos oficiales' : 'Escalado (más liviano o adaptado)'}</small></span><button type="button" class="switch" role="switch" aria-checked="${d.rx}" data-action="cf-wod-rx" aria-label="Rx"><span class="knob"></span></button></div>
-        <label class="cell"><span class="cell-label">Fecha</span><input class="pill-input" type="date" max="${todayKey()}" value="${d.date}" data-change="cf-wod-field" data-f="date" aria-label="Fecha"></label>
-      </div>
-      <button class="btn primary block" data-action="cf-wod-save"${wodScore() ? '' : ' disabled'}>${icon('check')}Guardar resultado</button>
-      ${list.length ? `<h4 class="ds-h">Historial</h4>
-        <div class="group">${list.map(r => `<div class="cell cf-hist" data-key="h-${r.id}">
-          <span class="cell-label">${fmtScore(w, r)}${best && r.id === best.id ? ' 🏆' : ''}<small>${relDate(r.date)} · ${r.rx ? 'Rx' : 'Scaled'}</small></span>
-          <button class="icon-btn" data-action="cf-wod-delete" data-id="${r.id}" aria-label="Borrar resultado">${icon('trash')}</button>
-        </div>`).join('')}</div>` : ''}
-    </div>`;
-}
-// El resultado escrito en el formulario, o null si está incompleto.
-function wodScore() {
-  const w = wodOf(wodDraft.wod);
-  const n = v => (v === '' || v == null ? null : Math.floor(Number(v)));
-  if (w.score === 'time') {
-    const secs = (n(wodDraft.min) || 0) * 60 + (n(wodDraft.sec) || 0);
-    return secs > 0 && (n(wodDraft.sec) || 0) < 60 ? { secs } : null;
+// Semanas seguidas cumpliendo la meta (la semana en curso cuenta solo si ya la cumpliste).
+function weekStreak() {
+  const goal = cf().weekGoal;
+  let w = weekStart(todayKey());
+  let n = 0;
+  if (daysTrained(w, addDays(w, 6)) >= goal) n++;
+  for (;;) {
+    w = addDays(w, -7);
+    if (daysTrained(w, addDays(w, 6)) < goal) break;
+    n++;
+    if (n > 520) break;
   }
-  if (w.score === 'amrap') return n(wodDraft.rounds) != null ? { rounds: n(wodDraft.rounds), reps: n(wodDraft.reps) || 0 } : null;
-  if (w.score === 'rounds') return n(wodDraft.rounds) != null && n(wodDraft.rounds) <= 30 ? { rounds: n(wodDraft.rounds) } : null;
-  return n(wodDraft.reps) != null ? { reps: n(wodDraft.reps) } : null;
+  return n;
 }
-export function openWod(id) {
-  wodOpen = id;
-  Object.assign(wodDraft, { wod: id, date: todayKey(), rx: true, min: '', sec: '', rounds: '', reps: '' });
-  openSheet({ key: 'cf-wod', title: () => wodOf(wodOpen).name, render: renderWod });
+
+function sessionsView() {
+  const goal = cf().weekGoal;
+  const t = todayKey(), ws = weekStart(t);
+  const done = new Set(cf().sessions.filter(s => s.date >= ws && s.date <= addDays(ws, 6)).map(s => s.date));
+  const streak = weekStreak();
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(ws, -7 * (7 - i)));
+  const counts = weeks.map(w => daysTrained(w, addDays(w, 6)));
+  const top = Math.max(goal, ...counts, 1);
+  const list = sessionsSorted();
+  return `
+    <section class="card cf-week" data-key="cf-week">
+      <div class="cf-week-head">
+        <div><span>Esta semana</span><b>${done.size}<small> de ${goal} entrenos</small></b></div>
+        <div class="cf-goal"><span>Meta</span>${stepper('cf-goal')}</div>
+      </div>
+      <div class="cf-days">${WEEKDAYS.map((l, i) => {
+        const k = addDays(ws, i);
+        return `<span class="${done.has(k) ? 'on' : ''}${k === t ? ' today' : ''}${k > t ? ' fut' : ''}"><i>${done.has(k) ? icon('check') : ''}</i>${l}</span>`;
+      }).join('')}</div>
+      <p class="cf-streak">${streak ? `🔥 ${plural(streak, 'semana seguida', 'semanas seguidas')} cumpliendo tu meta` : done.size >= goal ? '¡Meta de la semana cumplida!' : `Te ${goal - done.size === 1 ? 'falta 1 entreno' : `faltan ${goal - done.size} entrenos`} para tu meta de la semana`}</p>
+      <div class="cf-weeks" style="--g:${(goal / top).toFixed(3)}" aria-label="Entrenos de las últimas 8 semanas">
+        <em class="goal-line"></em>
+        ${counts.map((c, i) => `<div class="${c >= goal ? 'ok' : ''}${i === 7 ? ' cur' : ''}"><i style="height:${(c / top * 100).toFixed(1)}%"></i><span>${c}</span></div>`).join('')}
+      </div>
+    </section>
+    <div class="cf-actions" data-key="cf-ses-actions"><button class="btn primary" data-action="cf-ses-new">${icon('plus')}Registrar entreno</button></div>
+    ${sectionHead('Tus entrenos', list.length ? `${list.length}` : '', 'cf-h-ses')}
+    ${list.length ? `<div class="list" data-key="cf-ses-list">${list.slice(0, 60).map(s => `
+      <button class="cf-row cf-ses" data-key="cfs-${s.id}" data-action="cf-ses-open" data-id="${s.id}">
+        <span class="cf-row-main"><b>${esc(s.wod.split('\n')[0])}</b><small>${cap(relDate(s.date))}${s.result ? ` · ${esc(s.result)}` : ''}</small></span>
+        ${s.rpe ? `<span class="rpe rpe-${Math.ceil(s.rpe / 2)}" title="${RPE_LABEL[s.rpe]}">${s.rpe}</span>` : ''}
+        <span class="cell-chev">${icon('chevron-right')}</span>
+      </button>`).join('')}</div>`
+      : `<div class="list" data-key="cf-ses-empty">${emptyState({ ic: 'dumbbell', tint: 'c-orange', title: 'Tu primer entreno', text: 'Escribe el WOD del día como está en la pizarra, tu resultado y qué tan duro fue. Así ves cuántos días entrenas y tu racha.', key: 'cf-se' })}</div>`}
+    <p class="group-foot" data-key="cf-ses-foot">${icon('info')} El esfuerzo es del 1 (muy fácil) al 10 (al máximo): es la escala de esfuerzo percibido de la sesión (RPE) que usan los entrenadores para medir qué tan dura fue.</p>`;
+}
+
+const sesDraft = { id: '', date: '', wod: '', result: '', rpe: null, note: '' };
+function renderSession() {
+  const d = sesDraft;
+  return `
+    <div class="group cf-form">
+      <label class="cell"><span class="cell-label">Fecha</span><input class="pill-input" type="date" max="${todayKey()}" value="${d.date}" data-change="cf-ses-field" data-f="date" aria-label="Fecha"></label>
+    </div>
+    <h4 class="ds-h">El WOD</h4>
+    <textarea class="reflect cf-wod-text" rows="4" data-live data-input="cf-ses-field" data-f="wod" placeholder="Como está en la pizarra. Ej:&#10;AMRAP 15 min&#10;10 burpees&#10;15 wall balls 20 lb">${esc(d.wod)}</textarea>
+    <h4 class="ds-h">Tu resultado</h4>
+    <input class="cf-result" type="text" value="${esc(d.result)}" data-input="cf-ses-field" data-f="result" maxlength="120" placeholder="Ej: 6 rondas + 4 · 12:30 · 185 lb · Rx" aria-label="Tu resultado">
+    <h4 class="ds-h">¿Qué tan duro fue?${d.rpe ? ` <span class="rpe-word">${d.rpe} · ${RPE_LABEL[d.rpe]}</span>` : ''}</h4>
+    <div class="rpe-pick" role="radiogroup" aria-label="Esfuerzo del 1 al 10">${Array.from({ length: 10 }, (_, i) => i + 1).map(v => `<button type="button" class="rpe rpe-${Math.ceil(v / 2)}${d.rpe === v ? ' on' : ''}" data-action="cf-ses-rpe" data-v="${v}" role="radio" aria-checked="${d.rpe === v}" aria-label="${v}: ${RPE_LABEL[v]}">${v}</button>`).join('')}</div>
+    <textarea class="reflect" rows="2" data-live data-input="cf-ses-field" data-f="note" placeholder="Nota (opcional): cómo te sentiste, qué escalaste, qué mejorar…">${esc(d.note)}</textarea>
+    ${d.id ? `<button class="btn danger block" data-action="cf-ses-delete" style="margin-top:14px">${icon('trash')}Borrar este entreno</button>` : ''}`;
+}
+export function openSession(id) {
+  const s = cf().sessions.find(x => x.id === id);
+  Object.assign(sesDraft, s ? { ...s } : { id: '', date: todayKey(), wod: '', result: '', rpe: null, note: '' });
+  openSheet({
+    key: 'cf-ses', title: s ? 'Entreno' : 'Registrar entreno', render: renderSession,
+    right: () => ({ action: 'cf-ses-save', icon: 'check', label: 'Guardar', disabled: !sesDraft.wod.trim() }),
+    onOpen: sheet => { if (!s) setTimeout(() => sheet.querySelector('.cf-wod-text')?.focus(), 380); },
+  });
 }
 
 /* =========================================================
@@ -431,8 +434,8 @@ export function viewCrossfit() {
   return `
     ${largeTitle('CrossFit', 'Tu entreno')}
     ${!p.sex || !p.heightCm || ui.cfProfile ? profileCard() : ''}
-    <div class="cf-seg" data-key="cf-seg">${segmented('cf-seg', [{ value: 'lifts', label: 'Levantamientos' }, { value: 'wods', label: 'Benchmarks' }, { value: 'body', label: 'Cuerpo' }], seg)}</div>
-    ${seg === 'wods' ? wodsView() : seg === 'body' ? bodyView() : liftsView()}`;
+    <div class="cf-seg" data-key="cf-seg">${segmented('cf-seg', [{ value: 'lifts', label: 'Levantamientos' }, { value: 'entrenos', label: 'Entrenos' }, { value: 'body', label: 'Cuerpo' }], seg)}</div>
+    ${seg === 'entrenos' ? sessionsView() : seg === 'body' ? bodyView() : liftsView()}`;
 }
 
 /* =========================================================
@@ -527,29 +530,34 @@ export async function cfAction(name, el) {
       return;
     }
 
-    case 'cf-wod-open': haptic(); openWod(d.wod); return;
-    case 'input:cf-wod-field': case 'change:cf-wod-field': wodDraft[d.f] = el.value; refreshSheet(); return;
-    case 'cf-wod-rx': wodDraft.rx = !wodDraft.rx; haptic(); refreshSheet(); return;
-    case 'cf-wod-save': {
-      const s = wodScore();
-      if (!s) return;
-      const w = wodOf(wodDraft.wod);
-      const before = bestResult(w, resultsOf(w.id), wodDraft.rx);
-      const r = { id: newId(), wod: w.id, date: wodDraft.date || todayKey(), rx: wodDraft.rx, note: '', ...s };
-      cf().wods.push(r);
+    case 'cf-goal': cf().weekGoal = Math.max(1, Math.min(7, cf().weekGoal + Number(d.delta))); haptic(); commit(); return;
+    case 'cf-ses-new': openSession(null); return;
+    case 'cf-ses-open': haptic(); openSession(d.id); return;
+    case 'input:cf-ses-field': case 'change:cf-ses-field': sesDraft[d.f] = el.value; if (d.f === 'date') refreshSheet(); else if (d.f === 'wod') refreshSheet(); return;
+    case 'cf-ses-rpe': sesDraft.rpe = sesDraft.rpe === Number(d.v) ? null : Number(d.v); haptic(); refreshSheet(); return;
+    case 'cf-ses-save': {
+      const wod = sesDraft.wod.trim().slice(0, 1500);
+      if (!wod) return;
+      const data = { date: sesDraft.date || todayKey(), wod, result: sesDraft.result.trim().slice(0, 120), rpe: sesDraft.rpe, note: sesDraft.note.trim().slice(0, 500) };
+      const old = cf().sessions.find(x => x.id === sesDraft.id);
+      if (old) Object.assign(old, data);
+      else cf().sessions.push({ id: newId(), ...data });
+      const ws = weekStart(todayKey());
+      const before = old ? null : daysTrained(ws, addDays(ws, 6));
       commit();
-      Object.assign(wodDraft, { min: '', sec: '', rounds: '', reps: '' });
-      refreshSheet();
-      const pr = !before || scoreValue(w, r) > scoreValue(w, before);
+      closeSheet();
       haptic('success');
-      toast(pr ? '¡Nuevo récord!' : 'Resultado guardado', { sub: `${w.name}: ${fmtScore(w, r)} · ${r.rx ? 'Rx' : 'Scaled'}`, icon: pr ? 'star-fill' : 'check', tint: pr ? 'c-orange' : 'c-green' });
+      const now = daysTrained(ws, addDays(ws, 6)), goal = cf().weekGoal;
+      toast(!old && before < goal && now >= goal ? '¡Meta de la semana cumplida!' : old ? 'Entreno actualizado' : 'Entreno guardado',
+        { sub: old ? '' : `${now} de ${goal} esta semana`, icon: !old && before < goal && now >= goal ? 'star-fill' : 'check', tint: !old && before < goal && now >= goal ? 'c-orange' : 'c-green' });
       return;
     }
-    case 'cf-wod-delete': {
-      const i = await alertDialog({ title: '¿Borrar este resultado?', actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Borrar', style: 'destructive' }] });
+    case 'cf-ses-delete': {
+      const i = await alertDialog({ title: '¿Borrar este entreno?', actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Borrar', style: 'destructive' }] });
       if (i !== 1) return;
-      cf().wods = cf().wods.filter(r => r.id !== d.id);
+      cf().sessions = cf().sessions.filter(x => x.id !== sesDraft.id);
       commit();
+      closeSheet();
       return;
     }
 
@@ -604,6 +612,6 @@ export const CF_ACTIONS = [
   'cf-seg', 'cf-sex', 'change:cf-height', 'cf-profile-edit',
   'cf-lift-new', 'cf-lift-open', 'input:cf-field', 'change:cf-field', 'cf-lift-save', 'cf-lift-delete',
   'cf-complex-new', 'cf-complex-open', 'cf-cx-idea', 'input:cf-cx-field', 'change:cf-cx-field', 'cf-cx-save', 'cf-cx-delete',
-  'cf-wod-open', 'input:cf-wod-field', 'change:cf-wod-field', 'cf-wod-rx', 'cf-wod-save', 'cf-wod-delete',
+  'cf-goal', 'cf-ses-new', 'cf-ses-open', 'input:cf-ses-field', 'change:cf-ses-field', 'cf-ses-rpe', 'cf-ses-save', 'cf-ses-delete',
   'cf-body-new', 'cf-body-open', 'change:cf-body-date', 'input:cf-body-field', 'cf-body-save', 'cf-body-delete', 'cf-body-photo', 'change:body-photo-file',
 ];

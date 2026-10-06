@@ -58,9 +58,9 @@ function fresh() {
     focusLog: {},     // fecha: minutos
     journal: {},      // fecha: {mood (1-5), feel {e, p} energía × agrado, note, photo (cuándo se guardó la foto)}
     lastBackup: null, // cuándo se hizo la última copia de seguridad
-    cf: { profile: { sex: null, heightCm: null }, lifts: [], complexes: [], wods: [], body: [] },
+    cf: { profile: { sex: null, heightCm: null }, weekGoal: 4, lifts: [], complexes: [], sessions: [], body: [] },
     // CrossFit: lifts {id, lift, date, lb, reps, note} · complexes {id, name, date, lb, note}
-    //           wods {id, wod, date, rx, secs | rounds + reps | reps, note} · body {id, date, kg, waist, neck, hip, photo}
+    //           sessions {id, date, wod, result, rpe 1-10, note} · body {id, date, kg, waist, neck, hip, photo}
     planned: {},      // fecha planeada: timestamp de cuando se cerró el ritual
     wakeFor: {},      // fecha: hora de despertar elegida en el ritual
     guide: {},
@@ -182,11 +182,18 @@ function cleanJournal(j) {
 
 // CrossFit: cada registro se valida (pesos en lb, peso corporal en kg, medidas en cm).
 const LIFT_IDS = ['deadlift', 'backsquat', 'frontsquat', 'ohs', 'bench', 'press', 'pushpress', 'thruster', 'snatch', 'powersnatch', 'clean', 'powerclean', 'cleanjerk', 'jerk'];
-const WOD_IDS = ['fran', 'grace', 'helen', 'diane', 'elizabeth', 'isabel', 'jackie', 'karen', 'nancy', 'annie', 'angie', 'barbara', 'chelsea', 'cindy', 'mary', 'nicole', 'eva', 'kelly', 'linda', 'lynne', 'amanda', 'murph', 'dt', 'jt', 'michael', 'badger'];
-// Tipo de resultado de cada benchmark (el resto es "por tiempo").
-const WOD_SCORE = { cindy: 'amrap', mary: 'amrap', chelsea: 'rounds', nicole: 'reps', lynne: 'reps' };
 const half = (v, min, max) => { const n = Math.round(Number(v) * 2) / 2; return Number.isFinite(n) && n >= min && n <= max ? n : null; };
 const list = (v, fn, max = 5000) => (Array.isArray(v) ? v : []).slice(0, max).map(fn).filter(Boolean);
+// Los resultados de benchmarks de la 2.6.0 pasan a ser entrenos (la sección se reemplazó).
+function fromBenchmark(e) {
+  e = obj(e);
+  const name = typeof e.wod === 'string' ? e.wod.charAt(0).toUpperCase() + e.wod.slice(1) : '';
+  const n = v => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const result = n(e.secs) ? `${Math.floor(e.secs / 60)}:${String(e.secs % 60).padStart(2, '0')}`
+    : n(e.rounds) != null ? `${e.rounds} rondas${n(e.reps) ? ` + ${e.reps}` : ''}` : n(e.reps) != null ? `${e.reps} reps` : '';
+  if (!result) return null; // un resultado dañado no se convierte
+  return { id: e.id, date: e.date, wod: name, result: result ? `${result}${e.rx ? ' · Rx' : ' · Scaled'}` : '', rpe: null, note: '' };
+}
 function cleanCF(x) {
   x = obj(x);
   const p = obj(x.profile);
@@ -202,18 +209,13 @@ function cleanCF(x) {
       const lb = half(e.lb, 1, 1500), name = str(e.name, 120).trim();
       return name && date(e.date) && lb ? { id: id(e.id), name, date: e.date, lb, note: str(e.note, 300) } : null;
     }),
-    wods: list(x.wods, e => {
+    weekGoal: Number.isInteger(Number(x.weekGoal)) && x.weekGoal >= 1 && x.weekGoal <= 7 ? Number(x.weekGoal) : 4,
+    sessions: list([...(Array.isArray(x.sessions) ? x.sessions : []), ...(Array.isArray(x.wods) ? x.wods.map(fromBenchmark) : [])], e => {
       e = obj(e);
-      if (!WOD_IDS.includes(e.wod) || !date(e.date)) return null;
-      const n = (v, max) => (Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= max ? Number(v) : null);
-      const out = { id: id(e.id), wod: e.wod, date: e.date, rx: !!e.rx, note: str(e.note, 300) };
-      const type = WOD_SCORE[e.wod] || 'time';
-      if (type === 'time' && n(e.secs, 6 * 3600)) out.secs = n(e.secs, 6 * 3600);
-      else if (type === 'amrap' && n(e.rounds, 999) != null) { out.rounds = n(e.rounds, 999); out.reps = n(e.reps, 999) ?? 0; }
-      else if (type === 'rounds' && n(e.rounds, 30) != null) out.rounds = n(e.rounds, 30);
-      else if (type === 'reps' && n(e.reps, 99999) != null) out.reps = n(e.reps, 99999);
-      else return null;
-      return out;
+      const wod = str(e.wod, 1500).trim();
+      if (!date(e.date) || !wod) return null;
+      const rpe = Number(e.rpe);
+      return { id: id(e.id), date: e.date, wod, result: str(e.result, 120).trim(), rpe: Number.isInteger(rpe) && rpe >= 1 && rpe <= 10 ? rpe : null, note: str(e.note, 500) };
     }),
     body: list(x.body, e => {
       e = obj(e);

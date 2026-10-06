@@ -1,6 +1,5 @@
-// CrossFit: catálogo de levantamientos y benchmarks, y los cálculos (1RM, nivel, % de grasa).
-// Todo con su fuente. Rumbo no presenta nada como "oficial de CrossFit": las cargas y los
-// workouts son los publicados en crossfit.com; los niveles, los de un estudio científico.
+// CrossFit: catálogo de levantamientos y los cálculos (1RM, nivel, % de grasa), con sus fuentes.
+// Los niveles vienen de un estudio científico; Rumbo no presenta nada como "oficial de CrossFit".
 
 export const LB_PER_KG = 2.20462;
 export const toKg = lb => lb / LB_PER_KG;
@@ -109,68 +108,6 @@ export function crossfitPercentile(meierKey, sex, kg) {
 // Para la barra: los umbrales en lb.
 export const meierMarks = (meierKey, sex) => MEIER[sex]?.[meierKey]?.p.map((kg, i) => ({ pct: PCTS[i], lb: Math.round(toLb(kg)) })) || [];
 export const MEIER_CITE = 'Meier, Rabel y Schmidt (2021), Sports 9(6):80 · 162 crossfitters recreativos, 1RM autoinformado';
-
-/* =========================================================
-   Benchmarks (crossfit.com/benchmark/<nombre>): estructura y cargas Rx hombre / mujer.
-   score: 'time' (por tiempo, menos es mejor), 'amrap' (rondas + reps), 'reps' (total), 'rounds' (rondas, máx. 30).
-   ========================================================= */
-export const WODS = [
-  { id: 'fran', name: 'Fran', score: 'time', lines: ['21-15-9 repeticiones, por tiempo:', 'Thrusters · 95 / 65 lb', 'Pull-ups (dominadas)'],
-    tiers: [[180, 'Élite'], [300, 'Rx'], [600, 'Intermedio'], [720, 'Principiante']], meier: { m: [310.4, 134.3], f: [361.8, 112.7] } },
-  { id: 'grace', name: 'Grace', score: 'time', lines: ['30 repeticiones, por tiempo:', 'Clean and jerk · 135 / 95 lb'], meier: { m: [233.3, 101.2], f: [250.6, 171.2] } },
-  { id: 'helen', name: 'Helen', score: 'time', lines: ['3 rondas, por tiempo:', 'Correr 400 m', '21 kettlebell swings · 53 / 35 lb (1,5 / 1 pood)', '12 pull-ups'], meier: { m: [611.2, 127.1], f: [698.8, 186.1] } },
-  { id: 'diane', name: 'Diane', score: 'time', lines: ['21-15-9 repeticiones, por tiempo:', 'Peso muerto · 225 / 155 lb', 'Handstand push-ups (flexiones de pino)'] },
-  { id: 'elizabeth', name: 'Elizabeth', score: 'time', lines: ['21-15-9 repeticiones, por tiempo:', 'Cargadas (cleans) · 135 / 95 lb', 'Ring dips (fondos en anillas)'] },
-  { id: 'isabel', name: 'Isabel', score: 'time', lines: ['30 repeticiones, por tiempo:', 'Arranque (snatch) · 135 / 95 lb'] },
-  { id: 'jackie', name: 'Jackie', score: 'time', lines: ['Por tiempo:', 'Remo 1000 m', '50 thrusters · 45 / 35 lb', '30 pull-ups'] },
-  { id: 'karen', name: 'Karen', score: 'time', lines: ['150 wall-ball shots, por tiempo', 'Balón de 20 lb a 10 ft / 14 lb a 9 ft'] },
-  { id: 'nancy', name: 'Nancy', score: 'time', lines: ['5 rondas, por tiempo:', 'Correr 400 m', '15 sentadillas overhead · 95 / 65 lb'] },
-  { id: 'annie', name: 'Annie', score: 'time', lines: ['50-40-30-20-10 repeticiones, por tiempo:', 'Double-unders (dobles)', 'Sit-ups (abdominales)'] },
-  { id: 'angie', name: 'Angie', score: 'time', lines: ['Por tiempo:', '100 pull-ups', '100 push-ups (flexiones)', '100 sit-ups', '100 air squats (sentadillas)'] },
-  { id: 'barbara', name: 'Barbara', score: 'time', lines: ['5 rondas, por tiempo (3 min de descanso entre rondas):', '20 pull-ups', '30 push-ups', '40 sit-ups', '50 air squats'] },
-  { id: 'chelsea', name: 'Chelsea', score: 'rounds', lines: ['Cada minuto durante 30 minutos (EMOM):', '5 pull-ups', '10 push-ups', '15 air squats', 'Resultado: rondas completas (máximo 30)'] },
-  { id: 'cindy', name: 'Cindy', score: 'amrap', lines: ['Todas las rondas posibles en 20 minutos (AMRAP):', '5 pull-ups', '10 push-ups', '15 air squats'] },
-  { id: 'mary', name: 'Mary', score: 'amrap', lines: ['Todas las rondas posibles en 20 minutos (AMRAP):', '5 handstand push-ups', '10 pistols (alternando piernas)', '15 pull-ups'] },
-  { id: 'nicole', name: 'Nicole', score: 'reps', lines: ['20 minutos (AMRAP):', 'Correr 400 m', 'Máximo de pull-ups', 'Resultado: total de pull-ups'] },
-  { id: 'eva', name: 'Eva', score: 'time', lines: ['5 rondas, por tiempo:', 'Correr 800 m', '30 kettlebell swings · 2 / 1,5 pood (32 / 24 kg)', '30 pull-ups'] },
-  { id: 'kelly', name: 'Kelly', score: 'time', lines: ['5 rondas, por tiempo:', 'Correr 400 m', '30 box jumps · cajón de 24 / 20 in', '30 wall-ball shots · 20 / 14 lb'] },
-  { id: 'linda', name: 'Linda', score: 'time', lines: ['10-9-8-7-6-5-4-3-2-1 repeticiones, por tiempo:', 'Peso muerto · 1,5 × tu peso', 'Press de banca · tu peso', 'Squat clean · 0,75 × tu peso'] },
-  { id: 'lynne', name: 'Lynne', score: 'reps', lines: ['5 rondas, máximo de repeticiones (sin reloj):', 'Press de banca · tu peso', 'Pull-ups', 'Resultado: total de repeticiones'] },
-  { id: 'amanda', name: 'Amanda', score: 'time', lines: ['9-7-5 repeticiones, por tiempo:', 'Muscle-ups', 'Arranque (snatch) · 135 / 95 lb'] },
-  // Héroes
-  { id: 'murph', name: 'Murph', hero: true, score: 'time', lines: ['Por tiempo, con chaleco de 20 / 14 lb:', 'Correr 1 milla', '100 pull-ups', '200 push-ups', '300 air squats', 'Correr 1 milla', 'Las dominadas, flexiones y sentadillas se reparten como quieras'] },
-  { id: 'dt', name: 'DT', hero: true, score: 'time', lines: ['5 rondas, por tiempo, con una barra de 155 / 105 lb:', '12 pesos muertos', '9 hang power cleans', '6 push jerks'] },
-  { id: 'jt', name: 'JT', hero: true, score: 'time', lines: ['21-15-9 repeticiones, por tiempo:', 'Handstand push-ups', 'Ring dips', 'Push-ups'] },
-  { id: 'michael', name: 'Michael', hero: true, score: 'time', lines: ['3 rondas, por tiempo:', 'Correr 800 m', '50 back extensions (hiperextensiones)', '50 sit-ups'] },
-  { id: 'badger', name: 'Badger', hero: true, score: 'time', lines: ['3 rondas, por tiempo:', '30 squat cleans · 95 / 65 lb', '30 pull-ups', 'Correr 800 m'] },
-];
-export const wodOf = id => WODS.find(w => w.id === id);
-export const wodURL = w => `https://www.crossfit.com/benchmark/${w.id}`;
-
-// Valor comparable de un resultado: más alto = mejor (el tiempo va en negativo).
-export function scoreValue(w, s) {
-  if (w.score === 'time') return -s.secs;
-  if (w.score === 'amrap') return s.rounds * 1000 + s.reps;
-  if (w.score === 'rounds') return s.rounds;
-  return s.reps;
-}
-export function fmtScore(w, s) {
-  if (w.score === 'time') return `${Math.floor(s.secs / 60)}:${String(s.secs % 60).padStart(2, '0')}`;
-  if (w.score === 'amrap') return `${s.rounds} rondas${s.reps ? ` + ${s.reps}` : ''}`;
-  if (w.score === 'rounds') return `${s.rounds} rondas`;
-  return `${s.reps} reps`;
-}
-// Nivel oficial de Fran (crossfit.com/benchmark/fran): Élite <3 min, Rx <5, Intermedio <10, Principiante <12.
-export function wodTier(w, s) {
-  if (!w.tiers || w.score !== 'time') return null;
-  return w.tiers.find(([secs]) => s.secs < secs)?.[1] || null;
-}
-// Fran, Grace y Helen: comparación con los tiempos del estudio de Meier (media y DE, curva normal).
-export function wodPercentile(w, sex, secs) {
-  const d = w.meier?.[sex];
-  if (!d) return null;
-  return Math.max(1, Math.min(99, Math.round((1 - normalCdf((secs - d[0]) / d[1])) * 100)));
-}
 
 /* =========================================================
    Cuerpo
