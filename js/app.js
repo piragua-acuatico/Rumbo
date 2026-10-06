@@ -13,6 +13,7 @@ import { registerHandlers, completeTask } from './handlers.js';
 import { renderNight, isNight } from './night.js';
 import { render as renderFocus } from './focus.js';
 import { render as renderMission } from './sleep.js';
+import { onPhotosReady } from './photos.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
 import { scheduleSync, syncPush, pushStatus, updateBadge, whenPushReady } from './push.js';
@@ -336,3 +337,4 @@ setTimeout(tick, 1200);
 initUpdates();
 syncPush();
 whenPushReady().then(render); // habilita el botón "Activar notificaciones"
+onPhotosReady(render);        // las fotos del diario se cargan aparte y redibujan al llegar

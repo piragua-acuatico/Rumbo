@@ -7,9 +7,9 @@ Cinco pestañas: **Hoy · Plan · Diario · CrossFit · Perfil**.
 
 - **Hoy:** anillos de progreso (tareas, agua y enfoque), agenda con la línea de "ahora", tareas sin hora, atrasadas y registro de agua con un vaso animado. En la noche ofrece "Me voy a dormir"; en la mañana, cuánto dormiste.
 - **Plan**, con dos vistas:
-  - **Mañana:** el ritual de la noche en 4 pasos: cerrar el día, ánimo y reflexión, plan con tus 3 importantes y **despertador** (pone la alarma del iPhone). Al final, "Terminar el día" suma a tu racha.
+  - **Mañana:** el ritual de la noche en 4 pasos: cerrar el día, ánimo, nota y foto del día, plan con tus 3 importantes y **despertador** (pone la alarma del iPhone). Al final, "Terminar el día" suma a tu racha.
   - **Pendientes:** la bandeja de lo que aún no tiene día (con filtros por categoría) y las tareas de los próximos días.
-- **Diario:** tu ánimo y tus reflexiones de cada día. La foto del día llega en la Fase 4.
+- **Diario:** la foto y el ánimo de cada día (cuadrícula de energía × agrado, con 25 emociones), tu nota, el mosaico del mes, "hace un año" y tu año en píxeles. Las fotos se guardan comprimidas en el teléfono (IndexedDB).
 - **CrossFit:** vista previa. El módulo completo llega en la Fase 5.
 - **Perfil:** tu tarjeta (foto, nombre, racha) y las secciones, cada una con su pantalla:
   - Estadísticas, Notificaciones, Agua, Enfoque y Sueño.
@@ -34,6 +34,7 @@ node tools/serve.cjs
 ```
 - App: http://localhost:5173
 - Demo con datos de ejemplo (solo funciona en localhost): http://localhost:5173/tools/demo.html?tab=hoy&theme=dark
+  - Con `photos=1` carga fotos de ejemplo en el diario.
   - `tab` acepta `hoy`, `plan`, `diario`, `crossfit`, `perfil` o una subpantalla como `perfil/agua`.
   - Con `planned=0` se ve el ritual sin terminar.
   - Con `alarm=-1` la alarma "sonó" hace un minuto y aparece la misión; con `alarm=30` suena en 30 minutos.
@@ -61,10 +62,11 @@ GitHub Pages lo publica en 1 o 2 minutos. La próxima vez que abras Rumbo en el 
 - `js/views/`: `today`, `plan` (usa `ritual` e `inbox`), `diary`, `crossfit`, `profile` (sus subpantallas y `stats`).
 - `js/sheets.js` y `js/sheet.js`: hojas modales.
 - `js/push.js` y `js/config.js`: notificaciones (suscripción, avisos cifrados y conexión con el servidor).
+- `js/photos.js`, `js/zip.js` y `js/feelings.js`: fotos del diario (IndexedDB), copias .zip con fotos y la cuadrícula de ánimo.
 - `js/sleep.js`: despertador con Atajos, "me voy a dormir", la misión y el registro de sueño.
 - `js/focus.js`, `js/night.js`, `js/onboarding.js`, `js/swipe.js`, `js/parse.js`, `js/update.js` y `js/version.js`.
 - `sw.js`: funcionamiento sin conexión y notificaciones. Su lista de archivos la regenera `publicar`.
 - `server/`: el servidor de avisos (Cloudflare Workers + D1).
 - `tools/`: servidor local, demo, prueba en navegador, publicación y generador de íconos.
 
-Tus datos se guardan solo en el teléfono. Al servidor solo llegan los avisos, cifrados.
+Tus datos y tus fotos se guardan solo en el teléfono. Al servidor solo llegan los avisos, cifrados. La copia de seguridad (Perfil › Datos) es un .json o, si tienes fotos, un .zip con todo.

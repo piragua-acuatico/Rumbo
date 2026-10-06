@@ -57,6 +57,15 @@
         s.journal[k] = { mood: moods[i - 1], note: i === 1 ? 'Terminé el informe antes de tiempo y salí a caminar al atardecer.' : i === 3 ? 'Me costó concentrarme; mañana empiezo más temprano.' : '' };
         for (let j = 0; j < counts[i - 1]; j++) s.tasks.push(T('Tarea ' + j, k, { done: true }));
       }
+      // Ánimo (energía × agrado) de las últimas semanas y un recuerdo de hace un año.
+      const feels = [[4, 4], [2, 5], [3, 4], [4, 2], [5, 5], [1, 2], [2, 4], [3, 3], [4, 5], [2, 2], [5, 4], [1, 5], [3, 4], [4, 4], [2, 3], [3, 5], [5, 3], [1, 4], [4, 1], [2, 5]];
+      for (let i = 0; i < 60; i++) {
+        if (i % 7 === 6) continue;
+        const k = add(-i - 1), fe = feels[i % feels.length];
+        s.journal[k] = { ...(s.journal[k] || { note: '' }), feel: { e: fe[0], p: fe[1] }, mood: fe[1] };
+      }
+      const yearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return key(d); })();
+      s.journal[yearAgo] = { feel: { e: 4, p: 5 }, mood: 5, note: 'Primer día en el gimnasio nuevo. Terminé sin aire, pero feliz.' };
       s.routines = [{ id: 'r1', title: 'Meditar 10 min', time: null, duration: 15, days: [0, 1, 2, 3, 4, 5, 6], category: 'salud' }];
       // Noches de ejemplo (hora de acostarse → despertar), guardadas en el día en que despertó.
       const at = (k, h, m) => { const d = new Date(k + 'T00:00'); d.setHours(h, m, 0, 0); return d.getTime(); };
@@ -81,7 +90,32 @@
       sessionStorage.setItem('rumbo.fired', JSON.stringify(['*']));
     }
 
-    if (local && p.get('keep') !== '1') seed();
+    // ?photos=1: fotos de ejemplo (dibujadas al vuelo) en varios días.
+    async function seedPhotos() {
+      const { savePhoto, photoKeys, deletePhoto } = await import('../js/photos.js');
+      for (const k of await photoKeys()) await deletePhoto(k);
+      const s = JSON.parse(localStorage.getItem('rumbo.v1'));
+      const yearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return key(d); })();
+      const days = [add(0), add(-1), add(-2), add(-4), add(-5), add(-8), add(-9), add(-11), add(-15), add(-16), add(-19), yearAgo];
+      const hues = [24, 200, 330, 140, 45, 260, 12, 180, 300, 90, 210, 35];
+      for (let i = 0; i < days.length; i++) {
+        const c = document.createElement('canvas'); c.width = 1200; c.height = 900;
+        const g = c.getContext('2d'), h = hues[i];
+        const sky = g.createLinearGradient(0, 0, 0, 900);
+        sky.addColorStop(0, `hsl(${h}, 70%, 62%)`); sky.addColorStop(1, `hsl(${(h + 40) % 360}, 75%, 30%)`);
+        g.fillStyle = sky; g.fillRect(0, 0, 1200, 900);
+        g.fillStyle = `hsla(${(h + 180) % 360}, 90%, 85%, .9)`; g.beginPath(); g.arc(300 + i * 60, 330, 110, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.moveTo(0, 900); g.lineTo(0, 640); g.quadraticCurveTo(400, 480 + i * 10, 760, 650); g.quadraticCurveTo(1000, 560, 1200, 600); g.lineTo(1200, 900); g.fill();
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .85));
+        const at = await savePhoto(days[i], blob);
+        s.journal[days[i]] = { mood: null, feel: null, note: '', ...(s.journal[days[i]] || {}), photo: at };
+      }
+      s.journal[add(0)] = { ...s.journal[add(0)], feel: { e: 4, p: 4 }, mood: 4, note: 'Atardecer increíble saliendo del trabajo. Llamé a mi mamá.' };
+      localStorage.setItem('rumbo.v1', JSON.stringify(s));
+    }
+
+    (async () => {
+    if (local && p.get('keep') !== '1') { seed(); if (p.get('photos')) await seedPhotos(); }
     const f = document.getElementById('f');
     if (p.get('w')) f.style.width = p.get('w') + 'px';
     if (p.get('h')) f.style.height = p.get('h') + 'px';
@@ -107,6 +141,7 @@
       };
       setTimeout(next, 700);
     };
+    })();
   </script>
 </body>
 </html>

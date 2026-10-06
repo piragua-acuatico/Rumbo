@@ -1,9 +1,20 @@
 // Plan › Mañana: el ritual de la noche en 4 pasos.
-import { state, tasksFor, inboxTasks, ensureRoutines, planningStreak, planTarget, closingDay, MOODS, catOf } from '../store.js';
+import { state, tasksFor, inboxTasks, ensureRoutines, planningStreak, planTarget, closingDay, catOf } from '../store.js';
 import { fmtTime, fmtWeekday, fmtDur, nowMin, toMin, esc, plural } from '../utils.js';
 import { taskRow } from '../components.js';
 import { icon } from '../icons.js';
 import { alarmFor, alarmWindow } from '../sleep.js';
+import { feelOf, feelPad } from '../feelings.js';
+import { photoURL, photoMissing } from '../photos.js';
+
+// La foto del día dentro del paso 2: una miniatura para cambiarla, o el botón para añadirla.
+function photoRow(k) {
+  const has = !!state.journal[k]?.photo && !photoMissing(k);
+  const src = has ? photoURL(k, 'thumb') : '';
+  return has
+    ? `<button class="photo-row" data-action="day-open" data-date="${k}">${src ? `<img src="${src}" alt="">` : '<span class="ph-wait"></span>'}<span><b>Foto del día</b><small>Toca para verla o cambiarla</small></span></button>`
+    : `<button class="photo-row add" data-action="photo-add" data-date="${k}"><span class="pr-ic">${icon('camera')}</span><span><b>Añadir la foto del día</b><small>Un momento que quieras recordar</small></span></button>`;
+}
 
 function stepHead(n, ok, title, sub, right = '') {
   return `
@@ -70,11 +81,10 @@ export function viewRitual() {
   // 2 · Reflexión
   out.push(`
     <section class="card step-card${ok[1] ? ' ok' : ''}" data-key="st2">
-      ${stepHead(2, ok[1], '¿Cómo estuvo tu día?', journal.mood ? MOODS.find(m => m.v === journal.mood).l : 'Elige cómo te sentiste')}
-      <div class="moods" role="radiogroup" aria-label="Ánimo">
-        ${MOODS.map(m => `<button class="mood" data-action="mood" data-v="${m.v}" aria-pressed="${journal.mood === m.v}"><span>${m.e}</span>${m.l}</button>`).join('')}
-      </div>
+      ${stepHead(2, ok[1], '¿Cómo estuvo tu día?', feelOf(journal)?.word || 'Elige cómo te sentiste')}
+      ${feelPad(k, journal)}
       <textarea class="reflect" data-live data-input="journal-note" rows="2" placeholder="Lo mejor de hoy, algo que aprendiste o que agradeces…">${esc(journal.note || '')}</textarea>
+      ${photoRow(k)}
     </section>`);
 
   // 3 · Plan

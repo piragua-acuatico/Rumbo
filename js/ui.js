@@ -35,4 +35,6 @@ export const ui = {
   nightBypassUntil: 0,
   waterHistory: [],
   scroll: {},
+  // Diario: mes que muestra el mosaico ("2026-10"); null = el mes actual.
+  diaryMonth: null,
 };

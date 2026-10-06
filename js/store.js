@@ -56,7 +56,8 @@ function fresh() {
     routineSkips: {}, // "routineId|fecha": true
     water: {},        // fecha: ml
     focusLog: {},     // fecha: minutos
-    journal: {},      // fecha: {mood, note}
+    journal: {},      // fecha: {mood (1-5), feel {e, p} energía × agrado, note, photo (cuándo se guardó la foto)}
+    lastBackup: null, // cuándo se hizo la última copia de seguridad
     planned: {},      // fecha planeada: timestamp de cuando se cerró el ritual
     wakeFor: {},      // fecha: hora de despertar elegida en el ritual
     guide: {},
@@ -162,6 +163,20 @@ function cleanSleep(x) {
   };
 }
 
+// Un día del diario: ánimo (energía × agrado, y la carita vieja de 1 a 5), nota y marca de foto.
+const lvl = v => (Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 5 ? Number(v) : null);
+function cleanJournal(j) {
+  j = obj(j);
+  const e = lvl(obj(j.feel).e), p = lvl(obj(j.feel).p);
+  const feel = e && p ? { e, p } : null;
+  return {
+    mood: feel ? p : (MOODS.some(m => m.v === j.mood) ? j.mood : null),
+    feel,
+    note: str(j.note, 2000),
+    photo: ts(j.photo),
+  };
+}
+
 function migrate(data) {
   data = obj(data);
   const v1 = !data.version || data.version < 2;
@@ -177,7 +192,7 @@ function migrate(data) {
   s.routineSkips = Object.fromEntries(Object.keys(obj(data.routineSkips)).filter(k => /^[a-z0-9]+\|\d{4}-\d{2}-\d{2}$/i.test(k)).map(k => [k, true]));
   s.water = byDate(data.water, v => num(v1 ? v * glass : v, 0, 20000, null));
   s.focusLog = byDate(data.focusLog, v => num(v, 0, 1440, null));
-  s.journal = byDate(data.journal, j => ({ mood: MOODS.some(m => m.v === obj(j).mood) ? obj(j).mood : null, note: str(obj(j).note, 2000) }));
+  s.journal = byDate(data.journal, cleanJournal);
   s.planned = byDate(data.planned, v => Number(v) || Date.now());
   s.wakeFor = byDate(data.wakeFor, v => time(v));
   s.guide = Object.fromEntries(Object.entries(obj(data.guide)).filter(([k]) => /^[a-z]+\.\d+$/.test(k)).map(([k, v]) => [k, !!v]));
@@ -188,6 +203,7 @@ function migrate(data) {
   s.focus = cleanFocus(data.focus);
   s.profile = cleanProfile(data.profile, s.tasks);
   s.sleep = cleanSleep(data.sleep);
+  s.lastBackup = ts(data.lastBackup);
   return s;
 }
 

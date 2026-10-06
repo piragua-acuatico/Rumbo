@@ -1,7 +1,7 @@
 // Pestaña "Perfil": tu tarjeta y las secciones de configuración, al estilo
 // de la app Ajustes del iPhone. Cada sección abre su propia pantalla.
 import { state, ACCENTS, waterSlots, planningStreak } from '../store.js';
-import { esc, fmtTime, fromMin, toMin, daysText, fmtDur, plural, todayKey, addDays, dayLetter, relDate } from '../utils.js';
+import { esc, fmtTime, fromMin, toMin, daysText, fmtDur, plural, todayKey, addDays, dayLetter, relDate, keyOf } from '../utils.js';
 import { largeTitle, subHeader, cell, segmented, toggleSwitch, stepper, timeField, selectField } from '../components.js';
 import { icon } from '../icons.js';
 import { GUIDES } from '../guides.js';
@@ -294,15 +294,15 @@ function viewData() {
   return `
     ${subHeader('Datos y privacidad', 'Todo vive en este teléfono')}
     <section class="group icons" data-key="g-data">
-      ${cell({ ic: 'download', tint: 'c-blue', label: 'Crear copia de seguridad', action: 'export', chevron: true })}
+      ${cell({ ic: 'download', tint: 'c-blue', label: 'Crear copia de seguridad', sub: state.lastBackup ? `La última: ${relDate(keyOf(new Date(state.lastBackup))).toLowerCase()}` : 'Aún no has hecho ninguna', action: 'export', chevron: true })}
       ${cell({ ic: 'upload', tint: 'c-green', label: 'Restaurar copia', action: 'import', chevron: true })}
       ${cell({ ic: 'sparkles', tint: 'c-yellow', label: 'Ver la bienvenida', action: 'onboarding', chevron: true })}
     </section>
-    <p class="group-foot" data-key="f-data">Tus tareas, tu diario y tus registros no salen de tu iPhone. Guarda una copia en iCloud Drive una vez por semana: si borras la app, es la forma de recuperarlo todo.</p>
+    <p class="group-foot" data-key="f-data">Tus tareas, tu diario, tus fotos y tus registros no salen de tu iPhone. Guarda una copia en iCloud Drive cada semana o dos: si borras la app, es la forma de recuperarlo todo. Si tienes fotos, la copia es un archivo .zip con todas.</p>
     <section class="group" data-key="g-reset">
       ${cell({ label: 'Borrar todos los datos', action: 'reset', danger: true })}
     </section>
-    <input type="file" id="importFile" accept="application/json,.json" hidden data-key="import-file" data-change="import-file">
+    <input type="file" id="importFile" accept="application/json,.json,application/zip,.zip" hidden data-key="import-file" data-change="import-file">
     <p class="group-foot" data-key="f-heart" style="text-align:center;margin-top:18px">Hecho con ${icon('heart')}</p>`;
 }
 

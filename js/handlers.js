@@ -3,7 +3,7 @@ import {
   state, commit, save, getTask, tasksFor, toggleTask, deleteTask, setTaskDate, addTask, addWater,
   ensureRoutines, replaceState, resetState, planningStreak, planTarget, closingDay, DEFAULT_SETTINGS,
 } from './store.js';
-import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime } from './utils.js';
+import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime, keyOf, relDate } from './utils.js';
 import { on } from './actions.js';
 import { ui } from './ui.js';
 import { haptic, toast, confetti, animateOut, pop } from './fx.js';
@@ -18,6 +18,9 @@ import { openOnboarding, onbNext, onbBack } from './onboarding.js';
 import { nightPlanDate, isNightTime } from './night.js';
 import { GUIDES } from './guides.js';
 import { enablePush, disablePush, testPush } from './push.js';
+import { savePhoto, deletePhoto, clearPhotos, exportPhotos, importPhotos, photoKeys } from './photos.js';
+import { zip, unzip, isZip } from './zip.js';
+import { openDay } from './views/diary.js';
 import { setAlarm, alarmsOff, alarmWindow, testAlarm, goToBed, wakeUpNow, openMission, missionAction, alarmFor, wakeTimeFor, backupTime, at } from './sleep.js';
 
 const taskOf = el => getTask(el.closest('[data-id]')?.dataset.id);
@@ -251,43 +254,117 @@ export function registerHandlers({ go, back, render, applyTheme }) {
       if (err.name !== 'AbortError') toast('No se pudo compartir', { sub: err.message, icon: 'xmark', tint: 'c-red' });
     }
   });
-  on('export', () => {
-    const data = JSON.stringify({ app: 'rumbo', exportedAt: new Date().toISOString(), state }, null, 2);
+  /* ---------- Copia de seguridad (con fotos: ZIP) ---------- */
+  on('export', async () => {
+    const done = () => { state.lastBackup = Date.now(); commit(); };
+    let photos;
+    try {
+      await syncPhotoFlags();
+      photos = await exportPhotos();
+    } catch {
+      // Sin poder leer las fotos no se hace una copia "a medias" que parezca completa.
+      toast('No pude leer tus fotos', { sub: 'Cierra Rumbo, ábrela de nuevo e inténtalo otra vez', icon: 'xmark', tint: 'c-red', duration: 8000 });
+      return;
+    }
+    const json = JSON.stringify({ app: 'rumbo', exportedAt: new Date().toISOString(), state }, null, 2);
+    if (!photos.length) {
+      openFileSheet({
+        filename: `rumbo-respaldo-${todayKey()}.json`, text: json, type: 'application/json', onOpenFile: done,
+        title: 'Copia de seguridad', message: 'Guárdala en Archivos o en iCloud Drive. Con ella recuperas todo si cambias de teléfono.',
+      });
+      return;
+    }
+    const blob = zip([
+      { name: 'rumbo.json', data: new TextEncoder().encode(json) },
+      ...photos.map(p => ({ name: `fotos/${p.k}.jpg`, blob: p.blob, crc: p.crc, size: p.size })),
+    ]);
     openFileSheet({
-      filename: `rumbo-respaldo-${todayKey()}.json`, text: data, type: 'application/json',
-      title: 'Copia de seguridad', message: 'Guárdala en Archivos o en iCloud Drive. Con ella recuperas todo si cambias de teléfono.',
+      filename: `rumbo-respaldo-${todayKey()}.zip`, text: blob, type: 'application/zip', onOpenFile: done,
+      title: 'Copia de seguridad',
+      message: `Trae tus datos y ${plural(photos.length, 'foto', 'fotos')} (${(blob.size / 1048576).toLocaleString('es', { maximumFractionDigits: 1 })} MB). Guárdala en Archivos o en iCloud Drive: si borras la app o cambias de teléfono, con ella recuperas todo.`,
     });
   });
   on('import', () => document.getElementById('importFile')?.click());
-  on('change:import-file', el => {
+  // Que las marcas de foto del diario coincidan con las fotos guardadas de verdad.
+  async function syncPhotoFlags() {
+    const keys = new Set(await photoKeys());
+    let changed = false;
+    for (const [k, j] of Object.entries(state.journal)) if (j.photo && !keys.has(k)) { j.photo = null; changed = true; }
+    for (const k of keys) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      const j = state.journal[k] || (state.journal[k] = { mood: null, feel: null, note: '', photo: null });
+      if (!j.photo) { j.photo = Date.now(); changed = true; }
+    }
+    if (changed) commit();
+  }
+  // Lee una copia (.json, o .zip con fotos). Acepta ZIP vueltos a comprimir (con carpeta o __MACOSX).
+  async function readBackup(file) {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const photos = [];
+    let data;
+    if (isZip(bytes)) {
+      const files = [...(await unzip(buf))].filter(([name]) => !name.startsWith('__MACOSX/') && !/(^|\/)\._/.test(name));
+      const json = files.find(([name]) => /(^|\/)rumbo\.json$/.test(name));
+      if (!json) throw new Error('formato');
+      data = JSON.parse(new TextDecoder().decode(json[1]));
+      for (const [name, d] of files) {
+        const m = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.jpe?g$/i.exec(name);
+        if (m && d[0] === 0xFF && d[1] === 0xD8) photos.push({ k: m[1], data: d });
+      }
+    } else {
+      data = JSON.parse(new TextDecoder().decode(bytes));
+    }
+    if (data.app !== 'rumbo' || !data.state || !Array.isArray(data.state.tasks)) throw new Error('formato');
+    return { data, photos };
+  }
+  on('change:import-file', async el => {
     const file = el.files?.[0];
     el.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const data = JSON.parse(reader.result);
-        if (data.app !== 'rumbo' || !data.state || !Array.isArray(data.state.tasks)) throw new Error('formato');
-        const i = await alertDialog({
-          title: '¿Restaurar esta copia?', message: 'Reemplaza todo lo que tienes ahora en Rumbo.',
-          actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Restaurar', style: 'default' }],
-        });
-        if (i !== 1) return;
-        replaceState({ ...data.state, onboarded: true });
-        applyTheme();
-        toast('Datos restaurados', { icon: 'check', tint: 'c-green' });
-      } catch {
-        toast('Archivo no válido', { sub: 'No parece una copia de Rumbo', icon: 'xmark', tint: 'c-red' });
+    let backup;
+    try {
+      backup = await readBackup(file);
+    } catch {
+      toast('Archivo no válido', { sub: 'No parece una copia de Rumbo', icon: 'xmark', tint: 'c-red' });
+      return;
+    }
+    const { data, photos } = backup;
+    const i = await alertDialog({
+      title: '¿Restaurar esta copia?',
+      message: photos.length
+        ? `Reemplaza todo lo que tienes ahora en Rumbo, también las fotos (la copia trae ${plural(photos.length, 'foto', 'fotos')}).`
+        : 'Reemplaza todo lo que tienes ahora en Rumbo. Las fotos que ya están en este iPhone se conservan.',
+      actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Restaurar', style: 'default' }],
+    });
+    if (i !== 1) return;
+    try {
+      replaceState({ ...data.state, onboarded: true });
+      applyTheme();
+      let n = 0;
+      if (photos.length) {
+        toast('Restaurando fotos…', { sub: 'No cierres Rumbo', icon: 'camera', tint: 'c-blue', duration: 10000 });
+        n = await importPhotos(photos);
       }
-    };
-    reader.readAsText(file);
+      await syncPhotoFlags();
+      commit();
+      if (n < photos.length) {
+        toast(`Se restauraron ${n} de ${photos.length} fotos`, { sub: 'Algunas no se pudieron leer. Tus datos sí quedaron completos.', icon: 'camera', tint: 'c-orange', duration: 10000 });
+      } else {
+        toast('Datos restaurados', { sub: photos.length ? plural(photos.length, 'foto', 'fotos') : '', icon: 'check', tint: 'c-green' });
+      }
+    } catch {
+      // Los datos ya se reemplazaron: lo que falló fue el paso de las fotos.
+      toast('La restauración no terminó', { sub: 'Tus datos se restauraron, pero no todas las fotos. Inténtalo de nuevo con la misma copia.', icon: 'xmark', tint: 'c-red', duration: 10000 });
+    }
   });
   on('reset', async () => {
     const i = await alertDialog({
-      title: '¿Borrar todo?', message: 'Se eliminarán tus tareas, rutinas, registros y ajustes. No se puede deshacer.',
+      title: '¿Borrar todo?', message: 'Se eliminarán tus tareas, rutinas, registros, fotos y ajustes. No se puede deshacer.',
       actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Borrar', style: 'destructive' }],
     });
     if (i !== 1) return;
+    await clearPhotos().catch(() => {});
     resetState();
     applyTheme();
     go('hoy');
@@ -316,13 +393,63 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     haptic();
   });
 
-  /* ---------- Ritual de la noche ---------- */
-  on('mood', el => {
-    const k = closingDay();
-    state.journal[k] = { ...(state.journal[k] || {}), mood: Number(el.dataset.v) };
+  /* ---------- Diario: ánimo, fotos y días ---------- */
+  on('feel', el => {
+    const k = el.dataset.date;
+    const e = Number(el.dataset.e), p = Number(el.dataset.p);
+    state.journal[k] = { mood: null, note: '', photo: null, ...(state.journal[k] || {}), feel: { e, p }, mood: p };
     haptic();
     commit();
   });
+  on('photo-add', el => {
+    const input = document.getElementById('dayPhoto');
+    input.dataset.date = el.dataset.date;
+    input.click();
+  });
+  on('change:day-photo-file', async el => {
+    const file = el.files?.[0];
+    const k = el.dataset.date;
+    el.value = '';
+    if (!file || !/^\d{4}-\d{2}-\d{2}$/.test(k || '')) return;
+    try {
+      const at = await savePhoto(k, file);
+      state.journal[k] = { mood: null, feel: null, note: '', ...(state.journal[k] || {}), photo: at };
+      commit();
+      haptic('success');
+      toast('Foto guardada', { sub: k === todayKey() ? 'La foto de hoy' : relDate(k), icon: 'camera', tint: 'c-green' });
+    } catch {
+      toast('No se pudo guardar la foto', { sub: 'Prueba con otra, o libera espacio en el iPhone', icon: 'xmark', tint: 'c-red' });
+    }
+  });
+  on('photo-remove', async el => {
+    const k = el.dataset.date;
+    const i = await alertDialog({ title: '¿Quitar la foto de este día?', actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Quitar', style: 'destructive' }] });
+    if (i !== 1) return;
+    try {
+      await deletePhoto(k);
+    } catch {
+      toast('No se pudo quitar la foto', { sub: 'Inténtalo de nuevo', icon: 'xmark', tint: 'c-red' });
+      return;
+    }
+    if (state.journal[k]) state.journal[k].photo = null;
+    commit();
+  });
+  on('day-open', el => { haptic(); openDay(el.dataset.date); });
+  on('diary-month', el => {
+    const [y, m] = (ui.diaryMonth || todayKey().slice(0, 7)).split('-').map(Number);
+    const next = keyOf(new Date(y, m - 1 + Number(el.dataset.delta), 1)).slice(0, 7);
+    if (next > todayKey().slice(0, 7)) return;
+    ui.diaryMonth = next;
+    haptic();
+    render();
+  });
+  on('input:day-note', el => {
+    const k = el.dataset.date;
+    state.journal[k] = { mood: null, feel: null, photo: null, ...(state.journal[k] || {}), note: el.value };
+    save();
+  });
+
+  /* ---------- Ritual de la noche ---------- */
   on('input:journal-note', el => {
     const k = closingDay();
     state.journal[k] = { ...(state.journal[k] || {}), note: el.value };
