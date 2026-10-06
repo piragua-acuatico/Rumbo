@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   waterEvery: 120,
   focusGoal: 60,
   focusDefault: 25,
+  focusStrict: false, // modo árbol (estilo Forest): si sales de Rumbo durante el enfoque, el árbol se seca
   nightMode: true,
   nightStart: '23:00',
   nightEnd: '06:00',
@@ -44,7 +45,7 @@ export const DEFAULT_SETTINGS = {
   alarm: true,        // Rumbo pone la alarma del reloj (con Atajos) y pide la misión al despertar
   alarmBackup: 10,    // minutos hasta la alarma de respaldo (0 = sin respaldo)
   // Qué avisos se envían como notificación.
-  notify: { water: true, tasks: true, plan: true, night: true, morning: true, focus: true },
+  notify: { water: true, tasks: true, plan: true, night: true, morning: true, focus: true, weekly: true },
 };
 
 function fresh() {
@@ -58,6 +59,10 @@ function fresh() {
     focusLog: {},     // fecha: minutos
     journal: {},      // fecha: {mood (1-5), feel {e, p} energía × agrado, note, photo (cuándo se guardó la foto)}
     lastBackup: null, // cuándo se hizo la última copia de seguridad
+    achievements: null, // logro → cuándo se desbloqueó (null = aún no se revisaron los datos viejos)
+    trees: { grown: 0, dead: 0 }, // sesiones de enfoque en modo árbol
+    totals: { tasks: 0, focus: 0, waterDays: 0 }, // acumulados para los logros (no se borran al limpiar datos viejos)
+    weeklySeen: null,   // lunes de la última semana cuyo resumen ya viste
     cf: { profile: { sex: null, heightCm: null }, weekGoal: 4, lifts: [], complexes: [], sessions: [], body: [] },
     // CrossFit: lifts {id, lift, date, lb, reps, note} · complexes {id, name, date, lb, note}
     //           sessions {id, date, wod, result, rpe 1-10, note} · body {id, date, kg, waist, neck, hip, photo}
@@ -118,6 +123,7 @@ function cleanSettings(x) {
     waterEvery: [60, 90, 120, 180].includes(Number(x.waterEvery)) ? Number(x.waterEvery) : d.waterEvery,
     focusGoal: num(x.focusGoal, 15, 480, d.focusGoal),
     focusDefault: [15, 25, 45, 60].includes(Number(x.focusDefault)) ? Number(x.focusDefault) : d.focusDefault,
+    focusStrict: !!x.focusStrict,
     nightMode: x.nightMode === undefined ? d.nightMode : !!x.nightMode,
     nightStart: t('nightStart'), nightEnd: t('nightEnd'), planTime: t('planTime'),
     leadMin: [0, 5, 10, 15, 30].includes(Number(x.leadMin)) ? Number(x.leadMin) : d.leadMin,
@@ -144,6 +150,7 @@ function cleanFocus(f) {
     taskId: typeof f.taskId === 'string' && RE_ID.test(f.taskId) ? f.taskId : null, title: str(f.title, 300), total,
     remaining: num(f.remaining, 0, total, total), running: !!f.running && Number.isFinite(Number(f.endsAt)),
     endsAt: Number(f.endsAt) || null, finished: !!f.finished,
+    strict: !!f.strict, dead: !!f.dead, leftAt: Number(f.leftAt) || null,
   };
 }
 
@@ -253,6 +260,16 @@ function migrate(data) {
   s.profile = cleanProfile(data.profile, s.tasks);
   s.sleep = cleanSleep(data.sleep);
   s.lastBackup = ts(data.lastBackup);
+  s.achievements = data.achievements && typeof data.achievements === 'object'
+    ? Object.fromEntries(Object.entries(obj(data.achievements)).filter(([k]) => /^[a-z0-9-]{2,30}$/.test(k)).map(([k, v]) => [k, v === 1 ? 1 : ts(v) || Date.now()]))
+    : null;
+  // Acumulados: si la copia no los trae (versiones viejas), se calculan con lo que hay.
+  const tot = obj(data.totals);
+  s.totals = 'tasks' in tot
+    ? { tasks: num(tot.tasks, 0, 1e7, 0), focus: num(tot.focus, 0, 1e8, 0), waterDays: num(tot.waterDays, 0, 1e6, 0) }
+    : { tasks: s.tasks.filter(t => t.done).length, focus: Object.values(s.focusLog).reduce((a, m) => a + m, 0), waterDays: Object.values(s.water).filter(ml => ml >= s.settings.waterGoalMl).length };
+  s.trees = { grown: num(obj(data.trees).grown, 0, 1e6, 0), dead: num(obj(data.trees).dead, 0, 1e6, 0) };
+  s.weeklySeen = date(data.weeklySeen);
   s.cf = cleanCF(data.cf);
   return s;
 }
@@ -304,7 +321,8 @@ export function resetState() {
 export function prune() {
   const limit = addDays(todayKey(), -90);
   state.tasks = state.tasks.filter(t => !(t.done && t.date && t.date < limit));
-  for (const bag of [state.water, state.focusLog, state.planned, state.wakeFor]) {
+  // "planned" no se limpia: la racha puede pasar de 180 días.
+  for (const bag of [state.water, state.focusLog, state.wakeFor]) {
     for (const k of Object.keys(bag)) if (k < addDays(todayKey(), -180)) delete bag[k];
   }
   for (const k of Object.keys(state.sleep.log)) if (k < addDays(todayKey(), -400)) delete state.sleep.log[k];
@@ -359,6 +377,7 @@ export function setTaskDate(t, date) {
 export function toggleTask(t) {
   t.done = !t.done;
   t.doneAt = t.done ? Date.now() : null;
+  state.totals.tasks = Math.max(0, state.totals.tasks + (t.done ? 1 : -1));
   commit();
   return t.done;
 }
@@ -421,6 +440,9 @@ export function addWater(ml) {
   const k = todayKey();
   const before = waterFor(k);
   state.water[k] = Math.max(0, before + ml);
+  const goal = state.settings.waterGoalMl;
+  if (before < goal && state.water[k] >= goal) state.totals.waterDays++;
+  else if (before >= goal && state.water[k] < goal) state.totals.waterDays = Math.max(0, state.totals.waterDays - 1);
   commit();
   return { before, after: state.water[k] };
 }
@@ -435,15 +457,27 @@ export const focusFor = k => state.focusLog[k] || 0;
 export function logFocus(minutes, day = todayKey()) {
   if (minutes < 1) return;
   state.focusLog[day] = (state.focusLog[day] || 0) + Math.round(minutes);
+  state.totals.focus += Math.round(minutes);
 }
 
 /* ---------- Racha ---------- */
 
-export function planningStreak() {
-  // Días seguidos cuyo plan se cerró la noche anterior.
+// Días seguidos planeando (cerrando el día la noche anterior). Es una racha "humana": un día libre
+// cada 7 días no la rompe (el comodín); dos días seguidos sin planear, sí.
+export function planningStreakInfo() {
   const t = planTarget();
   let k = state.planned[t] ? t : addDays(t, -1);
-  let n = 0;
-  while (state.planned[k]) { n++; k = addDays(k, -1); }
-  return n;
+  let n = 0, lastFree = null, newestFree = null;
+  const gap = (a, b) => Math.round(Math.abs(parseKey(a) - parseKey(b)) / 864e5);
+  for (let i = 0; i < 4000; i++) {
+    if (state.planned[k]) { n++; k = addDays(k, -1); continue; }
+    const prev = addDays(k, -1);
+    if (state.planned[prev] && (lastFree === null || gap(lastFree, k) >= 7)) { lastFree = k; newestFree ||= k; k = prev; continue; }
+    break;
+  }
+  if (!n) return { n: 0, freeUsed: null, freeAvailable: true };
+  // ¿Ya usaste el comodín en los últimos 7 días?
+  const recent = newestFree && gap(newestFree, t) < 7 ? newestFree : null;
+  return { n, freeUsed: recent, freeAvailable: !recent };
 }
+export const planningStreak = () => planningStreakInfo().n;

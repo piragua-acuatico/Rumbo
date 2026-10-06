@@ -22,7 +22,11 @@ import { savePhoto, deletePhoto, clearPhotos, exportPhotos, importPhotos, photoK
 import { zip, unzip, isZip } from './zip.js';
 import { openDay } from './views/diary.js';
 import { cfAction, CF_ACTIONS } from './views/crossfit.js';
+import { openWeekly, shareWeekly } from './weekly.js';
 import { setAlarm, alarmsOff, alarmWindow, testAlarm, goToBed, wakeUpNow, openMission, missionAction, alarmFor, wakeTimeFor, backupTime, at } from './sleep.js';
+
+// Rachas que merecen confeti al cerrar el día.
+const STREAK_MILESTONES = [7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365, 500, 730, 1000];
 
 const taskOf = el => getTask(el.closest('[data-id]')?.dataset.id);
 const rowOf = el => el.closest('.row');
@@ -227,7 +231,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     haptic(state.guide[key] ? 'success' : 'light');
     commit();
     const id = key.split('.')[0];
-    if (state.guide[key] && GUIDES[id].steps.every((_, i) => state.guide[`${id}.${i}`])) confetti();
+    if (state.guide[key] && GUIDES[id].steps.every((_, i) => state.guide[`${id}.${i}`])) haptic('success');
   });
 
   /* ---------- Archivos (copia de seguridad) ---------- */
@@ -392,7 +396,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     const goal = state.settings.waterGoalMl;
     requestAnimationFrame(() => pop(document.querySelector('.water-amount')));
     if (before < goal && after >= goal) {
-      setTimeout(() => { confetti({ originY: 0.4 }); haptic('success'); }, 500);
+      setTimeout(() => haptic('success'), 500);
       toast('¡Meta de agua cumplida!', { sub: `${(after / 1000).toLocaleString('es')} L hoy`, icon: 'drop-fill', tint: 'c-blue' });
     }
   });
@@ -401,6 +405,10 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     addWater(-ml);
     haptic();
   });
+
+  /* ---------- Resumen semanal ---------- */
+  on('weekly-open', () => { haptic(); openWeekly(); });
+  on('weekly-share', () => shareWeekly().catch(() => toast('No se pudo crear la imagen', { icon: 'xmark', tint: 'c-red' })));
 
   /* ---------- CrossFit ---------- */
   for (const a of CF_ACTIONS) on(a, el => cfAction(a, el));
@@ -501,9 +509,14 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     state.planned[tk] = Date.now();
     commit();
     haptic('success');
-    confetti({ originY: 0.3 });
     const streak = planningStreak();
-    toast('Mañana está listo', { sub: streak > 1 ? `🔥 ${streak} días seguidos` : 'Ahora, a descansar', icon: 'moon-fill', tint: 'c-indigo' });
+    let milestone = STREAK_MILESTONES.includes(streak);
+    try {
+      if (milestone && localStorage.getItem('rumbo.milestone') === `${tk}|${streak}`) milestone = false;
+      else if (milestone) localStorage.setItem('rumbo.milestone', `${tk}|${streak}`);
+    } catch { /* sin almacenamiento */ }
+    if (milestone) confetti({ originY: 0.3 });
+    toast(milestone ? `🔥 ¡${streak} días seguidos!` : 'Mañana está listo', { sub: milestone ? 'Un hito en tu racha. Ahora, a descansar' : streak > 1 ? `🔥 ${streak} días seguidos` : 'Ahora, a descansar', icon: 'moon-fill', tint: 'c-indigo' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   on('unfinish-day', () => { delete state.planned[planTarget()]; commit(); });
@@ -714,6 +727,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     }
   });
   on('set-focus-goal', el => { haptic(); setS('focusGoal', clamp(state.settings.focusGoal + Number(el.dataset.delta) * 15, 15, 480)); });
+  on('set-focus-strict', () => { haptic(); setS('focusStrict', !state.settings.focusStrict); });
   on('set-focus-default', el => { haptic(); setS('focusDefault', Number(el.dataset.value)); });
   on('change:set-lead', el => setS('leadMin', Number(el.value)));
   on('set-night', () => { haptic(); setS('nightMode', !state.settings.nightMode); });
@@ -722,7 +736,7 @@ export function registerHandlers({ go, back, render, applyTheme }) {
   /* ---------- Enfoque ---------- */
   on('focus-open', () => { haptic(); openFocus(null); });
   on('focus-pill', () => openFocus());
-  for (const a of ['focus-start', 'focus-pause', 'focus-plus', 'focus-preset', 'focus-min', 'focus-stop', 'focus-again', 'focus-done-task']) {
+  for (const a of ['focus-start', 'focus-pause', 'focus-plus', 'focus-preset', 'focus-min', 'focus-stop', 'focus-again', 'focus-done-task', 'focus-strict']) {
     on(a, el => focusAction(a, el));
   }
 
@@ -751,7 +765,6 @@ export function completeTask(t, el) {
     const list = tasksFor(todayKey());
     if (list.length > 1 && list.every(x => x.done)) {
       setTimeout(() => {
-        confetti();
         toast('¡Día completo!', { sub: 'Hiciste todo lo que planeaste', icon: 'sparkles', tint: 'c-orange' });
       }, 350);
     }

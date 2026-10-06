@@ -7,6 +7,26 @@ import { alarmFor, alarmWindow } from '../sleep.js';
 import { moodOf, moodPicker } from '../feelings.js';
 import { photoURL, photoMissing } from '../photos.js';
 
+// Carga del día (estilo Sunsama): cuánto tiempo suman las tareas y si alguna se cruza con otra.
+// Las tareas sin duración cuentan como 30 min. Más de 8 h ya no es realista para un día.
+const OVERLOAD = 8 * 60;
+function loadHTML(plan) {
+  const open = plan.filter(t => !t.done);
+  if (!open.length) return '';
+  const total = open.reduce((a, t) => a + (t.duration || 30), 0);
+  const timed = open.filter(t => t.time).sort((a, b) => toMin(a.time) - toMin(b.time));
+  let clash = null;
+  for (let i = 1; i < timed.length && !clash; i++) {
+    const p = timed[i - 1];
+    if (toMin(timed[i].time) < toMin(p.time) + (p.duration || 30)) clash = [p, timed[i]];
+  }
+  const over = total > OVERLOAD;
+  return `
+    <p class="load-line${over ? ' over' : ''}">${icon('clock')}<span>≈ <b>${fmtDur(total)}</b> de tareas${over ? ' · es más de lo que cabe en un día' : ''}</span></p>
+    ${over ? `<p class="callout" style="margin:10px 0 0">${icon('hand')}<span>Planear de más es la forma más rápida de terminar el día sintiendo que no hiciste nada. Mueve a Pendientes lo que no sea de mañana.</span></p>` : ''}
+    ${clash ? `<p class="callout" style="margin:10px 0 0">${icon('clock')}<span><b>${esc(clash[0].title)}</b> y <b>${esc(clash[1].title)}</b> se cruzan a las ${fmtTime(clash[1].time)}.</span></p>` : ''}`;
+}
+
 // La foto del día dentro del paso 2: una miniatura para cambiarla, o el botón para añadirla.
 function photoRow(k) {
   const has = !!state.journal[k]?.photo && !photoMissing(k);
@@ -96,6 +116,7 @@ export function viewRitual() {
         ${plan.map(t => taskRow(t, { timeCol: plan.some(x => x.time), move: 'inbox' })).join('')}
         <button class="add-row" data-action="add" data-preset="plan">${icon('plus')}Añadir a mañana</button>
       </div>
+      ${loadHTML(plan)}
       ${imp > 3 ? `<p class="callout" style="margin:14px 0 0">${icon('star-fill')}<span>Tienes ${imp} importantes. Si todo es importante, nada lo es: quédate con las 3 que de verdad mueven tu día.</span></p>` : ''}
       ${inbox.length ? `
         <p class="cell-cap" style="margin:16px 0 10px;font-size:13px;color:var(--label-2);display:flex;gap:6px;align-items:center">${icon('tray')}Trae de pendientes</p>

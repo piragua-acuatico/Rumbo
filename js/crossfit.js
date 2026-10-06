@@ -11,20 +11,20 @@ export const toLb = kg => kg * LB_PER_KG;
    meier: clave de la tabla del estudio (si el estudio midió ese levantamiento).
    ========================================================= */
 export const LIFTS = [
-  { id: 'deadlift', name: 'Peso muerto', en: 'Deadlift', kind: 'fuerza', meier: 'DL' },
-  { id: 'backsquat', name: 'Sentadilla trasera', en: 'Back squat', kind: 'fuerza', meier: 'BS' },
-  { id: 'frontsquat', name: 'Sentadilla frontal', en: 'Front squat', kind: 'fuerza' },
-  { id: 'ohs', name: 'Sentadilla overhead', en: 'Overhead squat', kind: 'fuerza' },
-  { id: 'bench', name: 'Press de banca', en: 'Bench press', kind: 'fuerza', meier: 'BP' },
-  { id: 'press', name: 'Press de hombros', en: 'Shoulder press (estricto)', kind: 'fuerza', meier: 'SP' },
-  { id: 'pushpress', name: 'Push press', en: 'Push press', kind: 'fuerza' },
-  { id: 'thruster', name: 'Thruster', en: 'Thruster', kind: 'fuerza' },
-  { id: 'snatch', name: 'Arranque', en: 'Snatch', kind: 'olimpico', meier: 'SN' },
-  { id: 'powersnatch', name: 'Power snatch', en: 'Power snatch', kind: 'olimpico' },
-  { id: 'clean', name: 'Cargada', en: 'Clean', kind: 'olimpico' },
-  { id: 'powerclean', name: 'Power clean', en: 'Power clean', kind: 'olimpico' },
-  { id: 'cleanjerk', name: 'Clean & jerk', en: 'Dos tiempos', kind: 'olimpico', meier: 'CJ' },
-  { id: 'jerk', name: 'Jerk', en: 'Split / push jerk', kind: 'olimpico' },
+  { id: 'deadlift', name: 'Deadlift', es: 'Peso muerto', kind: 'fuerza', meier: 'DL' },
+  { id: 'backsquat', name: 'Back squat', es: 'Sentadilla trasera', kind: 'fuerza', meier: 'BS' },
+  { id: 'frontsquat', name: 'Front squat', es: 'Sentadilla frontal', kind: 'fuerza' },
+  { id: 'ohs', name: 'Overhead squat', es: 'Sentadilla con la barra arriba', kind: 'fuerza' },
+  { id: 'bench', name: 'Bench press', es: 'Press de banca', kind: 'fuerza', meier: 'BP' },
+  { id: 'press', name: 'Shoulder press', es: 'Press de hombros estricto', kind: 'fuerza', meier: 'SP' },
+  { id: 'pushpress', name: 'Push press', es: 'Press con impulso de piernas', kind: 'fuerza' },
+  { id: 'thruster', name: 'Thruster', es: 'Sentadilla frontal + press', kind: 'fuerza' },
+  { id: 'snatch', name: 'Snatch', es: 'Arranque', kind: 'olimpico', meier: 'SN' },
+  { id: 'powersnatch', name: 'Power snatch', es: 'Arranque sin sentadilla completa', kind: 'olimpico' },
+  { id: 'clean', name: 'Clean', es: 'Cargada', kind: 'olimpico' },
+  { id: 'powerclean', name: 'Power clean', es: 'Cargada sin sentadilla completa', kind: 'olimpico' },
+  { id: 'cleanjerk', name: 'Clean & jerk', es: 'Dos tiempos', kind: 'olimpico', meier: 'CJ' },
+  { id: 'jerk', name: 'Jerk', es: 'Split o push jerk', kind: 'olimpico' },
 ];
 export const liftOf = id => LIFTS.find(l => l.id === id);
 

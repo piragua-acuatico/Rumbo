@@ -6,7 +6,7 @@ import { run } from './actions.js';
 import { ui, parseRoute } from './ui.js';
 import { icon } from './icons.js';
 import { emptyState } from './components.js';
-import { toast, autosize } from './fx.js';
+import { toast, autosize, confetti } from './fx.js';
 import { refreshSheet, closeSheet, sheetOpen } from './sheet.js';
 import { initSwipe } from './swipe.js';
 import { registerHandlers, completeTask } from './handlers.js';
@@ -14,6 +14,7 @@ import { renderNight, isNight } from './night.js';
 import { render as renderFocus } from './focus.js';
 import { render as renderMission } from './sleep.js';
 import { onPhotosReady } from './photos.js';
+import { checkAchievements } from './achievements.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
 import { scheduleSync, syncPush, pushStatus, updateBadge, whenPushReady } from './push.js';
@@ -327,6 +328,19 @@ registerHandlers({ go, back, render, applyTheme });
 initSwipe(id => { const t = getTask(id); if (t) completeTask(t, null); });
 subscribe(render);
 subscribe(scheduleSync);
+// Logros: se revisan un momento después de cada cambio; al desbloquear uno, confeti (un hito).
+let achTimer = null;
+subscribe(() => {
+  clearTimeout(achTimer);
+  achTimer = setTimeout(() => {
+    const fresh = checkAchievements();
+    if (!fresh.length) return;
+    confetti({ originY: 0.35 });
+    fresh.forEach((a, i) => setTimeout(() => toast(`Logro: ${a.title}`, { sub: a.desc, icon: 'trophy', tint: 'c-yellow', duration: 6000 }), i * 1200));
+    render();
+  }, 700);
+});
+checkAchievements(); // la primera vez marca en silencio lo que ya habías logrado
 buildTabbar();
 render();
 if (!state.onboarded) openOnboarding(); else morningBrief();

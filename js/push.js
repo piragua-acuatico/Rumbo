@@ -6,6 +6,7 @@
 import { state, tasksFor, waterSlots } from './store.js';
 import { todayKey, addDays, parseKey, toMin, fromMin, fmtTime, plural, isStandalone } from './utils.js';
 import { PUSH } from './config.js';
+import { weekStats, hasData } from './weekly.js';
 
 const LS = 'rumbo.push';
 const HORIZON_DAYS = 7;   // si no abres Rumbo en una semana, los avisos se detienen (y te lo avisa)
@@ -211,6 +212,16 @@ export function buildEvents(now = Date.now()) {
         ? [plural(pending.length, 'tarea', 'tareas'), imp ? plural(imp, 'importante', 'importantes') : '', first ? `empiezas a las ${fmtTime(first.time)}` : ''].filter(Boolean).join(' · ')
         : 'Hoy no tienes nada planeado. Abre Rumbo y arma tu día.';
       add(at(k, toMin(state.wakeFor[k] || s.wakeTime)), 'manana', '☀️ Buenos días', body, 'manana');
+    }
+  }
+  // Resumen semanal: el próximo lunes a las 9:00.
+  if (n.weekly) {
+    for (let i = 0; i < HORIZON_DAYS; i++) {
+      const k = addDays(t0, i);
+      if (parseKey(k).getDay() !== 1) continue;
+      const prev = addDays(k, -7);
+      if (state.weeklySeen !== prev && hasData(weekStats(prev))) add(at(k, 9 * 60), 'resumen', '📊 Tu semana en Rumbo', 'Mira cómo te fue la semana pasada.', 'resumen');
+      break;
     }
   }
   // Si no abres Rumbo en casi una semana, este último aviso te lo recuerda (cada sincronización lo vuelve a correr).

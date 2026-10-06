@@ -9,8 +9,11 @@ const FLAG = 'rumbo.updated';
 function busy() {
   const a = document.activeElement;
   const typing = a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
-  const overlay = ['focus', 'onboarding'].some(id => !document.getElementById(id)?.hidden);
-  return typing || sheetOpen() || overlay;
+  const overlay = ['focus', 'mission', 'onboarding'].some(id => !document.getElementById(id)?.hidden);
+  // Una sesión de enfoque corriendo (aunque esté minimizada) no se interrumpe con una recarga.
+  let focusing = false;
+  try { focusing = !!JSON.parse(localStorage.getItem('rumbo.v1'))?.focus?.running; } catch { /* sin datos */ }
+  return typing || sheetOpen() || overlay || focusing;
 }
 
 function reload() {

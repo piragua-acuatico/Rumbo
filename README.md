@@ -17,7 +17,11 @@ Cinco pestañas: **Hoy · Plan · Diario · CrossFit · Perfil**.
   - Apariencia, Configura tu iPhone (instalación y bloqueos con Tiempo en pantalla) y Datos y privacidad.
 - **Notificaciones reales** (agua, tareas, planear, modo noche, buenos días, fin del enfoque, misión del despertador), aunque la app esté cerrada. Las envía un servidor propio en Cloudflare (carpeta `server/`, con su propio README) y viajan cifradas: el servidor no puede leerlas.
 - **Despertador con misión:** Rumbo pone la alarma en el **Reloj** del iPhone usando la app **Atajos** (suena bloqueado, en silencio y sin gastar batería), más una alarma de respaldo. Al despertar, 5 operaciones apagan el respaldo y Rumbo anota cuánto dormiste. Guía en Perfil › Sueño.
-- **Enfoque:** temporizador a pantalla completa, con un indicador flotante cuando lo minimizas.
+- **Enfoque:** temporizador a pantalla completa, con un indicador flotante cuando lo minimizas. **Modo árbol** (estilo Forest): mientras te enfocas crece un árbol; si sales de Rumbo más de 10 s, se seca. La pantalla se queda encendida.
+- **Racha humana:** un día sin planear cada 7 días no la rompe.
+- **Logros** (Perfil › Logros) y **confeti solo en hitos** (logros y rachas de 7, 14, 30… días).
+- **Aviso de sobrecarga** en el ritual (más de 8 h de tareas o tareas que se cruzan) y **cuenta regresiva** del bloque actual en Hoy.
+- **Resumen semanal:** los lunes, cómo te fue la semana pasada frente a la anterior, con imagen para compartir.
 - **Modo noche (11 pm – 6 am):** pantalla de descanso con tu plan, un campo para anotar algo rápido y "Me voy a dormir".
 - **Escritura natural:** "Gym mañana 7pm por 1h #salud !" detecta el día, la hora, la duración, la categoría y si es importante.
 - **Gestos:**
@@ -65,6 +69,7 @@ GitHub Pages lo publica en 1 o 2 minutos. La próxima vez que abras Rumbo en el 
 - `js/push.js` y `js/config.js`: notificaciones (suscripción, avisos cifrados y conexión con el servidor).
 - `js/photos.js`, `js/zip.js` y `js/feelings.js`: fotos del diario (IndexedDB), copias .zip con fotos y la cuadrícula de ánimo.
 - `js/crossfit.js`: catálogo de levantamientos y benchmarks, y los cálculos (1RM, nivel, % de grasa), con sus fuentes.
+- `js/achievements.js` y `js/weekly.js`: logros y resumen semanal.
 - `js/sleep.js`: despertador con Atajos, "me voy a dormir", la misión y el registro de sueño.
 - `js/focus.js`, `js/night.js`, `js/onboarding.js`, `js/swipe.js`, `js/parse.js`, `js/update.js` y `js/version.js`.
 - `sw.js`: funcionamiento sin conexión y notificaciones. Su lista de archivos la regenera `publicar`.

@@ -9,6 +9,7 @@ import { VERSION as APP_VERSION } from '../version.js';
 import { viewStats } from './stats.js';
 import { pushStatus, pushInfo, pushReady, hasPairCode } from '../push.js';
 import { nightMinutes, at } from '../sleep.js';
+import { ACHIEVEMENTS, unlocked, progressOf } from '../achievements.js';
 
 const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 const guideDone = id => GUIDES[id].steps.filter((_, i) => state.guide[`${id}.${i}`]).length;
@@ -54,6 +55,8 @@ export function viewProfile() {
     <h2 class="sec-h small" data-key="h-prog">Tu progreso</h2>
     <section class="group icons" data-key="g-prog">
       ${cell({ ic: 'chart', tint: 'c-pink', label: 'Estadísticas', sub: 'Racha, tareas, agua, enfoque y ánimo', action: 'go', attrs: go('estadisticas'), chevron: true })}
+      ${cell({ ic: 'trophy', tint: 'c-yellow', label: 'Logros', value: `${Object.keys(unlocked()).length}/${ACHIEVEMENTS.length}`, action: 'go', attrs: go('logros'), chevron: true })}
+      ${cell({ ic: 'calendar-check', tint: 'c-blue', label: 'Resumen de la semana', sub: 'Cómo te fue la semana pasada', action: 'weekly-open', chevron: true })}
     </section>
 
     <h2 class="sec-h small" data-key="h-notify">Avisos</h2>
@@ -138,10 +141,30 @@ function viewNotifications() {
       ${toggle('night', 'bed', 'c-purple', 'Modo noche', `15 min antes, a las ${nightWarn}`)}
       ${toggle('morning', 'sun-fill', 'c-orange', 'Buenos días', `A tu hora de despertar, con el resumen del día`)}
       ${toggle('focus', 'timer', 'c-green', 'Fin del enfoque', 'Cuando termina una sesión')}
+      ${toggle('weekly', 'calendar-check', 'c-purple', 'Resumen semanal', 'Los lunes a las 9:00 am')}
     </section>
     <p class="group-foot" data-key="f-notify">${icon('lock')} El título de tus tareas viaja <b>cifrado</b>: el servidor guarda un texto que no puede leer, y solo tu iPhone lo descifra al mostrar el aviso.</p>
     ${st === 'on' ? `<section class="group" data-key="g-noff">${cell({ label: 'Desactivar en este iPhone', action: 'notify-disable', danger: true })}</section>` : ''}`;
 }
+function viewAchievements() {
+  const got = unlocked();
+  const fmt = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' });
+  const list = [...ACHIEVEMENTS].sort((a, b) => (got[b.id] ? 1 : 0) - (got[a.id] ? 1 : 0));
+  return `
+    ${subHeader('Logros', `${Object.keys(got).length} de ${ACHIEVEMENTS.length} desbloqueados`)}
+    <div class="ach-grid" data-key="ach-grid">${list.map(a => {
+      const on = !!got[a.id];
+      const v = progressOf(a);
+      return `<div class="ach${on ? ' on' : ''}" data-key="ach-${a.id}" style="--tint: var(--${a.tint})">
+        <span class="ach-ic">${icon(a.ic)}</span>
+        <b>${a.title}</b>
+        <small>${a.desc}</small>
+        ${on ? `<em>${got[a.id] === 1 ? 'Desbloqueado' : fmt.format(new Date(got[a.id]))}</em>` : `<span class="ach-bar"><i style="width:${(v / a.goal * 100).toFixed(0)}%"></i></span><em>${v.toLocaleString('es')} / ${a.goal}</em>`}
+      </div>`;
+    }).join('')}</div>
+    <p class="group-foot" data-key="f-ach">Los logros se desbloquean solos con lo que haces en Rumbo. Es de los pocos momentos con confeti: se guarda para lo que de verdad cuesta.</p>`;
+}
+
 function viewWater() {
   const s = state.settings;
   return `
@@ -170,7 +193,11 @@ function viewFocusSettings() {
         ${segmented('set-focus-default', [15, 25, 45, 60].map(v => ({ value: v, label: `${v} min` })), s.focusDefault)}
       </div>
     </section>
-    <p class="group-foot" data-key="f-focus">Cada sesión de enfoque llena el anillo verde de Hoy.</p>`;
+    <p class="group-foot" data-key="f-focus">Cada sesión de enfoque llena el anillo verde de Hoy.</p>
+    <section class="group icons" data-key="g-tree">
+      ${cell({ ic: 'leaf', tint: 'c-green', label: 'Modo árbol', sub: 'Al estilo Forest: si sales de Rumbo, el árbol se seca', control: toggleSwitch('set-focus-strict', s.focusStrict, '', 'Modo árbol') })}
+    </section>
+    <p class="group-foot" data-key="f-tree">${state.trees.grown || state.trees.dead ? `Tu bosque: 🌳 ${state.trees.grown} · 🥀 ${state.trees.dead}. ` : ''}Durante la sesión la pantalla se queda encendida. Si cambias de app o bloqueas el iPhone más de 10 segundos, la sesión no cuenta.</p>`;
 }
 
 const hm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -309,6 +336,7 @@ function viewData() {
 // Subpantallas del perfil: ruta → [título en la barra, vista].
 export const PROFILE_PAGES = {
   estadisticas: ['Estadísticas', viewStats],
+  logros: ['Logros', viewAchievements],
   notificaciones: ['Notificaciones', viewNotifications],
   agua: ['Agua', viewWater],
   enfoque: ['Enfoque', viewFocusSettings],

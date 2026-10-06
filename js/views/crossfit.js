@@ -89,7 +89,7 @@ function liftsView() {
       const top = list.reduce((a, e) => (e.lb > a.lb ? e : a), list[0]);
       return `
         <button class="cf-row" data-key="cfl-${l.id}" data-action="cf-lift-open" data-lift="${l.id}">
-          <span class="cf-row-main"><b>${l.name}</b><small>${pct != null ? `Más que el ${best.est ? '~' : ''}${pct} % de los crossfitters` : `${l.en} · ${plural(list.length, 'registro', 'registros')}`}</small></span>
+          <span class="cf-row-main"><b>${l.name}</b><small>${pct != null ? `Más que el ${best.est ? '~' : ''}${pct} % de los crossfitters` : `${l.es} · ${plural(list.length, 'registro', 'registros')}`}</small></span>
           <span class="cf-row-val">${best
             ? `<b>${lbs(best.lb)}</b><small>${best.est ? '1RM est.' : '1RM'}</small>`
             : `<b>${lbs(top.lb)}</b><small>× ${top.reps} reps</small>`}</span>
@@ -128,7 +128,7 @@ function renderLiftLog() {
       <label class="cell"><span class="cell-label">Repeticiones</span><input class="pill-input num-input" type="number" inputmode="numeric" step="1" min="1" max="50" value="${esc(d.reps)}" data-input="cf-field" data-f="reps" aria-label="Repeticiones"></label>
       <label class="cell"><span class="cell-label">Fecha</span><input class="pill-input" type="date" max="${todayKey()}" value="${d.date}" data-change="cf-field" data-f="date" aria-label="Fecha"></label>
     </div>
-    <p class="cf-hint">${!pos(d.lb) ? `${l.en}${l.kind === 'olimpico' ? ' · levantamiento olímpico: cuenta el single' : ''}`
+    <p class="cf-hint">${!pos(d.lb) ? `${l.es}${l.kind === 'olimpico' ? ' · levantamiento olímpico: cuenta el single' : ''}`
       : r ? (r.est ? `1RM estimado: <b>${lbs(r.lb)}</b>` : `Es un 1RM: <b>${lbs(r.lb)}</b>`)
         : l.kind === 'olimpico' ? 'En los olímpicos no se estima el 1RM: se guarda tal cual.' : `Con más de ${MAX_EST_REPS} repeticiones el 1RM no se estima (la fórmula deja de ser confiable).`}</p>
     <textarea class="reflect" rows="1" data-live data-input="cf-field" data-f="note" placeholder="Nota (opcional): cinturón, sensación, técnica…">${esc(d.note)}</textarea>`;
@@ -167,11 +167,11 @@ function renderLift() {
   const points = Object.entries(byDay).sort().map(([date, v]) => ({ date, v }));
   return `
     <div class="cf-detail">
-      <p class="cf-en">${l.en}${l.kind === 'olimpico' ? ' · olímpico' : ''}</p>
+      <p class="cf-en">${l.es}${l.kind === 'olimpico' ? ' · olímpico' : ''}</p>
       ${best ? `<div class="cf-big"><b>${lbs(best.lb)}</b><span>${best.est ? `1RM estimado (de ${lbs(best.from.lb)} × ${best.from.reps})` : '1RM'} · ${relDate(best.date).toLowerCase()}</span></div>` : '<p class="cf-hint">Aún no hay un 1RM: registra un single (o, en fuerza, una serie de 10 o menos).</p>'}
       ${levelBar(l, best)}
       ${lineChart(points, { unit: ' lb', key: 'lift-chart' })}
-      <button class="btn tinted block" data-action="cf-lift-new" data-lift="${l.id}">${icon('plus')}Registrar ${l.name.toLowerCase()}</button>
+      <button class="btn tinted block" data-action="cf-lift-new" data-lift="${l.id}">${icon('plus')}Registrar ${l.name}</button>
       <h4 class="ds-h">Historial</h4>
       <div class="group">${list.map(e => {
         const r = oneRM(e, l);

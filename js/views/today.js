@@ -5,6 +5,7 @@ import { largeTitle, sectionHead, emptyState, taskRow, nowLine, rings, RING_COLO
 import { icon } from '../icons.js';
 import { avatarHTML } from './profile.js';
 import { missionPending, alarmFor, wakeKey, wakeTimeFor, nightMinutes } from '../sleep.js';
+import { weeklyPending, weekLabel, lastWeek } from '../weekly.js';
 
 const liters = ml => (ml / 1000).toLocaleString('es', { maximumFractionDigits: 2 });
 
@@ -109,6 +110,14 @@ export function viewToday() {
       </button>`);
   }
 
+  if (weeklyPending()) {
+    out.push(`
+      <button class="banner tappable-card" data-key="b-weekly" data-action="weekly-open" style="--tint: var(--c-purple)">
+        <span class="banner-ic">${icon('calendar-check')}</span>
+        <span class="banner-text"><b>Tu semana en Rumbo</b><p>Mira cómo te fue ${weekLabel(lastWeek())}.</p></span>
+        <span class="cell-chev">${icon('chevron-right')}</span>
+      </button>`);
+  }
   out.push(sleepBanner(m));
 
   // Anillos.
@@ -117,8 +126,12 @@ export function viewToday() {
   let next;
   if (!list.length) next = '<span>Sin tareas</span><b>Empieza añadiendo una</b>';
   else if (done === list.length) next = '<span>¡Día completo!</span><b>Hiciste todo lo que planeaste 🎉</b>';
-  else if (current) next = `<span>Ahora</span><b>${esc(current.title)}</b>`;
-  else if (upcoming) next = `<span>Siguiente · ${fmtTime(upcoming.time)}</span><b>${esc(upcoming.title)}</b>`;
+  else if (current) {
+    // Cuenta regresiva del bloque actual (estilo Tiimo / Structured).
+    const start = toMin(current.time), end = start + (current.duration || 30);
+    next = `<span>Ahora · quedan ${fmtDur(Math.max(1, end - m))}</span><b>${esc(current.title)}</b><i class="next-bar"><i style="width:${Math.min(100, ((m - start) / (end - start)) * 100).toFixed(0)}%"></i></i>`;
+  }
+  else if (upcoming) next = `<span>Siguiente · ${toMin(upcoming.time) - m <= 180 ? `en ${fmtDur(toMin(upcoming.time) - m)}` : fmtTime(upcoming.time)}</span><b>${esc(upcoming.title)}</b>`;
   else next = `<span>Te quedan</span><b>${plural(list.length - done, 'tarea', 'tareas')}</b>`;
 
   const waterGoal = s.waterGoalMl;

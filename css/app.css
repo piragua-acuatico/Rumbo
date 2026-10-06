@@ -1602,3 +1602,53 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .cf-result { display: block; width: 100%; height: 48px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--label); font: inherit; font-size: 17px; outline: none; -webkit-appearance: none; appearance: none; }
 .cf-wod-text { min-height: 110px; }
 .sheet .reflect { background: var(--sheet-card, var(--card)); }
+
+/* Pulido (v2.7) */
+.load-line { display: flex; align-items: center; gap: 6px; margin: 12px 2px 0; font-size: 14px; color: var(--label-2); }
+.load-line .i { font-size: 15px; }
+.load-line b { color: var(--label); }
+.load-line.over, .load-line.over b { color: var(--c-orange); }
+.streak-free { font-size: 13px; color: var(--label-2); margin: 4px 0 0; }
+.next-bar { display: block; height: 5px; border-radius: 3px; background: var(--fill); margin-top: 6px; overflow: hidden; max-width: 180px; }
+.next-bar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .6s var(--ease); }
+
+/* Logros */
+.ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ach { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px; border-radius: 18px; background: var(--card); min-height: 150px; }
+.ach-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; font-size: 22px; color: #fff; background: var(--fill-3); margin-bottom: 6px; }
+.ach.on .ach-ic { background: var(--tint); box-shadow: 0 6px 16px color-mix(in srgb, var(--tint) 40%, transparent); }
+.ach b { font-size: 15px; }
+.ach:not(.on) b { color: var(--label-2); }
+.ach small { font-size: 12.5px; color: var(--label-2); line-height: 1.3; }
+.ach em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--label-2); margin-top: auto; padding-top: 6px; }
+.ach.on em { color: var(--tint); }
+.ach-bar { display: block; width: 100%; height: 5px; border-radius: 3px; background: var(--fill); margin-top: auto; overflow: hidden; }
+.ach-bar i { display: block; height: 100%; background: var(--tint); border-radius: 3px; }
+.ach-bar + em { padding-top: 4px; margin-top: 0; }
+
+/* Modo árbol */
+.focus-tree { font-size: 92px; line-height: 1; margin: 6px 0 10px; animation: missionIn .6s var(--spring) both; }
+.focus-tree.dead { filter: saturate(.6); }
+.focus-time .focus-stage { display: block; font-size: 44px; line-height: 1; margin-bottom: 4px; }
+.focus-strict { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 20px; margin-top: 14px; background: rgba(255, 255, 255, .1); color: #fff; font-size: 15px; font-weight: 600; }
+.focus-strict span { font-weight: 500; opacity: .6; }
+.focus-strict.on { background: rgba(48, 209, 88, .25); }
+.focus-strict.on span { opacity: .9; }
+
+/* Resumen semanal */
+.wk-range { text-align: center; color: var(--label-2); font-size: 15px; margin: -4px 0 14px; }
+.wk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wk-tile { position: relative; padding: 14px; border-radius: 18px; background: var(--sheet-card, var(--card)); }
+.wk-ic { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: #fff; background: var(--tint); font-size: 17px; margin-bottom: 8px; }
+.wk-tile small { display: block; font-size: 12.5px; color: var(--label-2); }
+.wk-tile b { display: block; font: 800 26px/1.15 var(--font-round); letter-spacing: -.2px; }
+.wk-tile > span:not(.wk-ic) { display: block; font-size: 12px; color: var(--label-2); }
+.wk-tile em { position: absolute; top: 14px; right: 12px; font-style: normal; font-size: 12px; font-weight: 700; }
+.wk-tile em.up { color: var(--c-green); }
+.wk-tile em.down { color: var(--c-orange); }
+.wk-notes { margin: 14px 0; padding: 4px 14px; border-radius: 18px; background: var(--sheet-card, var(--card)); }
+.wk-notes p { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 15px; }
+.wk-notes p + p { border-top: .5px solid var(--sep); }
+.wk-notes span { font-size: 22px; }
+.wk-foot { text-align: center; font-size: 12.5px; color: var(--label-2); margin: 10px 0 4px; }
+.wk-img { display: block; width: 100%; border-radius: 18px; margin-top: 4px; }

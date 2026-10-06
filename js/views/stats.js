@@ -1,5 +1,5 @@
 // Perfil › Estadísticas: racha, resumen y gráficos de los últimos días.
-import { state, planningStreak, MOODS } from '../store.js';
+import { state, planningStreakInfo, MOODS } from '../store.js';
 import { todayKey, addDays, dayLetter, parseKey, fmtDateLong, fmtDur, plural, esc, relDate } from '../utils.js';
 import { subHeader, segmented, sectionHead } from '../components.js';
 import { icon } from '../icons.js';
@@ -51,7 +51,8 @@ export function viewStats() {
   const activeWater = waterVals.filter(v => v > 0);
   const waterAvg = activeWater.length ? sum(activeWater) / activeWater.length : 0;
   const focusSum = sum(focusVals);
-  const streak = planningStreak();
+  const info = planningStreakInfo();
+  const streak = info.n;
 
   const out = [];
   out.push(subHeader('Estadísticas', n === 7 ? 'Últimos 7 días' : 'Últimos 30 días'));
@@ -66,6 +67,7 @@ export function viewStats() {
         <div>
           <div class="streak-num">${streak}<small>${streak === 1 ? 'día' : 'días'}</small></div>
           <p class="streak-lbl">${streak ? 'seguidos planeando la noche anterior' : 'Planea esta noche para empezar tu racha'}</p>
+          ${streak ? `<p class="streak-free">${info.freeUsed ? `Usaste tu día libre (${relDate(info.freeUsed).toLowerCase()}): la racha sigue. Tendrás otro en unos días.` : 'Tienes 1 día libre: si una noche no planeas, tu racha no se rompe.'}</p>` : ''}
         </div>
       </div>
       <div class="week-dots">
