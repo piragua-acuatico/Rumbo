@@ -9,6 +9,7 @@ export const CATEGORIES = [
   { id: 'estudio', name: 'Estudio', color: 'purple' },
   { id: 'salud', name: 'Salud', color: 'green' },
   { id: 'hogar', name: 'Hogar', color: 'pink' },
+  { id: 'digiizate', name: 'Digiízate', color: 'teal' },
 ];
 export const catOf = id => CATEGORIES.find(c => c.id === id) || null;
 
@@ -45,7 +46,8 @@ export const DEFAULT_SETTINGS = {
   alarm: true,        // Rumbo pone la alarma del reloj (con Atajos) y pide la misión al despertar
   alarmBackup: 10,    // minutos hasta la alarma de respaldo (0 = sin respaldo)
   // Qué avisos se envían como notificación.
-  notify: { water: true, tasks: true, plan: true, night: true, morning: true, focus: true, weekly: true },
+  // eve: a las 7 pm, un resumen con las tareas del día siguiente.
+  notify: { water: true, tasks: true, eve: true, plan: true, night: true, morning: true, focus: true, weekly: true },
 };
 
 function fresh() {
@@ -350,14 +352,14 @@ export const overdueTasks = () => {
 };
 export const inboxTasks = () => state.tasks.filter(t => !t.date).sort((a, b) => (b.important - a.important) || (a.createdAt - b.createdAt));
 
-export function addTask(data) {
+export function addTask(data, save = true) {
   const t = {
-    id: uid(), title: String(data.title || '').trim(), date: data.date || null, time: data.date ? (data.time || null) : null,
+    id: uid(), title: String(data.title || '').trim().slice(0, 300), date: data.date || null, time: data.date ? (data.time || null) : null,
     duration: data.duration ? Number(data.duration) : null, important: !!data.important, done: false, doneAt: null,
     notes: data.notes || '', category: data.category || null, subtasks: [], routineId: null, createdAt: Date.now(),
   };
   state.tasks.push(t);
-  commit();
+  if (save) commit(); // varias seguidas (lote): se guarda una sola vez al final
   return t;
 }
 

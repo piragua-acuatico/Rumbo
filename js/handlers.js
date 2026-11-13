@@ -6,10 +6,10 @@ import {
 import { todayKey, addDays, uid, plural, clamp, nowMin, toMin, fmtTime, keyOf, relDate, scroller } from './utils.js';
 import { on } from './actions.js';
 import { ui } from './ui.js';
-import { haptic, toast, confetti, animateOut, pop } from './fx.js';
+import { haptic, toast, confetti, animateOut, pop, autosize } from './fx.js';
 import { closeSheet, refreshSheet, alertDialog, sheetKey } from './sheet.js';
 import {
-  openAdd, submitAdd, draft, effectiveDraft, openTask, currentDetail, setDetailWhen,
+  openAdd, submitAdd, isBatch, draft, effectiveDraft, openTask, currentDetail, setDetailWhen,
   openRoutine, routineDraft, openGuide, openFileSheet, getPendingFile, dateOf,
 } from './sheets.js';
 import { closeOpenRow } from './swipe.js';
@@ -105,9 +105,10 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     if (!t) return;
     haptic('success');
     const box = document.querySelector('.sheet .compose');
-    if (box) { box.value = ''; box.focus(); }
+    if (box) { box.value = ''; autosize(box); box.focus(); }
   });
-  on('add-when', el => { draft.when = el.dataset.value; draft.manual.when = true; haptic(); refreshSheet(); });
+  // En el lote, "Cuándo" es solo para las líneas sin día: no debe pisar el día que escribas luego en una tarea suelta.
+  on('add-when', el => { draft.when = el.dataset.value; if (!isBatch()) draft.manual.when = true; haptic(); refreshSheet(); });
   on('add-clear-time', () => { draft.time = ''; draft.manual.time = true; refreshSheet(); });
   on('add-dur', el => { draft.duration = el.dataset.v ? Number(el.dataset.v) : null; draft.manual.duration = true; refreshSheet(); });
   on('add-cat', el => { draft.category = el.dataset.v || null; draft.manual.category = true; refreshSheet(); });

@@ -136,7 +136,8 @@ function viewNotifications() {
     <h2 class="sec-h small" data-key="h-ntypes">Qué te avisamos</h2>
     <section class="group icons" data-key="g-ntypes">
       ${toggle('water', 'drop-fill', 'c-blue', 'Agua', `Cada ${every}, de ${fmtTime(s.waterStart)} a ${fmtTime(s.waterEnd)}`)}
-      ${toggle('tasks', 'clock', 'c-red', 'Tareas', Number(s.leadMin) ? `${s.leadMin} min antes de cada tarea con hora` : 'A la hora de cada tarea')}
+      ${toggle('tasks', 'clock', 'c-red', 'Tareas', `${Number(s.leadMin) ? `${s.leadMin} min antes de cada tarea con hora` : 'A la hora de cada tarea'}; las de Digiízate, también 1 h antes`)}
+      ${toggle('eve', 'calendar', 'c-teal', 'Tareas de mañana', 'A las 7:00 pm, con lo que tienes al día siguiente')}
       ${toggle('plan', 'moon-fill', 'c-indigo', 'Planear mañana', `A las ${fmtTime(s.planTime)}, si aún no lo hiciste`)}
       ${toggle('night', 'bed', 'c-purple', 'Modo noche', `15 min antes, a las ${nightWarn}`)}
       ${toggle('morning', 'sun-fill', 'c-orange', 'Buenos días', `A tu hora de despertar, con el resumen del día`)}

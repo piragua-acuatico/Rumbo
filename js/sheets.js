@@ -1,6 +1,6 @@
 // Contenido de las hojas: nueva tarea, detalle, rutina, guías y archivos.
 import { state, CATEGORIES, catOf, addTask, getTask, commit, setTaskDate, planTarget } from './store.js';
-import { todayKey, addDays, esc, fmtTime, relDate, fmtDur, WEEK, fmtDateLong } from './utils.js';
+import { todayKey, addDays, esc, fmtTime, relDate, fmtDur, WEEK, fmtDateLong, fmtWeekday, fmtShort, cap, plural } from './utils.js';
 import { segmented, toggleSwitch } from './components.js';
 import { parseQuick } from './parse.js';
 import { icon } from './icons.js';
@@ -54,11 +54,58 @@ export function effectiveDraft() {
   };
 }
 
+/* Varias líneas pegadas: una tarea por línea (sin viñetas ni numeración). */
+const MAX_BATCH = 50;
+const batchLines = text => text.split(/\r?\n/).map(l => l.replace(/^\s*(?:[-–—•*·]+\s*|\d{1,2}[.)](?!\d)\s*)/, '').trim()).filter(Boolean);
+export const isBatch = () => batchLines(draft.text).length > 1;
+// Cada línea lleva su propio día; las que no dicen día van a lo elegido en "Cuándo".
+export function batchDrafts() {
+  const k = todayKey();
+  return batchLines(draft.text).slice(0, MAX_BATCH).map(line => {
+    const p = parseQuick(line, k, CATEGORIES);
+    const date = p.date !== undefined ? p.date : dateOf(draft.when);
+    return { title: p.title, date, time: date ? p.time : null, duration: p.duration, category: p.category, important: p.important };
+  }).filter(t => t.title.trim());
+}
+
+// Si la fecha cae en otro año, se dice ("5 ene 2027"), para que no se pierda de vista.
+const yearOf = k => (k.slice(0, 4) !== todayKey().slice(0, 4) ? ` ${k.slice(0, 4)}` : '');
+
+function renderBatch() {
+  const list = batchDrafts();
+  const total = batchLines(draft.text).length;
+  const whenOpts = [{ value: 'today', label: 'Hoy' }, { value: 'tomorrow', label: 'Mañana' }, { value: 'inbox', label: 'Pendientes' }];
+  const day = k => (k ? `${cap(fmtWeekday(k))} ${fmtShort(k)}${yearOf(k)}` : 'Pendientes');
+  return `
+    <textarea class="compose" rows="1" data-live data-input="add-text" data-enter="add-submit" placeholder="¿Qué vas a hacer?" enterkeyhint="done" aria-label="Nueva tarea">${esc(draft.text)}</textarea>
+    <h2 class="sec-h small" data-key="bt-h">Se crearán ${plural(list.length, 'tarea', 'tareas')}</h2>
+    <section class="group batch" data-key="bt-list">${list.map((t, i) => {
+      const c = catOf(t.category);
+      const meta = [day(t.date), t.time && fmtTime(t.time), t.duration && fmtDur(t.duration)].filter(Boolean).join(' · ');
+      return `<div class="batch-row" data-key="bt-${i}">
+        <b>${t.important ? `${icon('star-fill')}<span class="sr-only">Importante: </span>` : ''}${esc(t.title)}</b>
+        <small>${meta}${c ? ` · <i class="dot" style="background:var(--c-${c.color})"></i>${c.name}` : ''}</small>
+      </div>`;
+    }).join('')}</section>
+    ${total > MAX_BATCH ? `<p class="group-foot" data-key="bt-max">Solo se añaden las primeras ${MAX_BATCH} líneas.</p>` : ''}
+    <div class="group icons" style="margin-top:12px" data-key="bt-when">
+      <div class="cell-block">
+        <div class="cell-cap">${icon('calendar')}Las líneas que no dicen el día van a</div>
+        ${segmented('add-when', whenOpts, draft.when === 'other' ? 'today' : draft.when)}
+      </div>
+    </div>
+    <p class="hint" data-key="bt-hint">${icon('sparkles')}<span>Revisa el día de cada una antes de añadirlas. Cada línea entiende lo mismo que una tarea suelta.</span></p>
+    <button class="btn primary block" data-action="add-submit" data-key="bt-go"${list.length ? '' : ' disabled'}>${icon('plus')}Añadir ${plural(list.length, 'tarea', 'tareas')}</button>
+    ${draft.added.length ? `<div class="added-list">${draft.added.map((t, i) => `<span data-key="ad-${i}">${icon('check')}${esc(t)}</span>`).join('')}</div>` : ''}
+  `;
+}
+
 function renderAdd() {
+  if (isBatch()) return renderBatch();
   const e = effectiveDraft();
   const p = e.parsed;
   const chips = [];
-  if (!draft.manual.when && p.date !== undefined) chips.push(`<span class="parse-chip" data-key="pc-d">${icon('calendar')}${relDate(p.date)}</span>`);
+  if (!draft.manual.when && p.date !== undefined) chips.push(`<span class="parse-chip" data-key="pc-d">${icon('calendar')}${relDate(p.date)}${yearOf(p.date)}</span>`);
   if (!draft.manual.time && p.time) chips.push(`<span class="parse-chip" data-key="pc-t">${icon('clock')}${fmtTime(p.time)}</span>`);
   if (!draft.manual.duration && p.duration) chips.push(`<span class="parse-chip" data-key="pc-u">${icon('timer')}${fmtDur(p.duration)}</span>`);
   if (!draft.manual.category && p.category) chips.push(`<span class="parse-chip" data-key="pc-c">${icon('tag')}${catOf(p.category).name}</span>`);
@@ -95,7 +142,7 @@ function renderAdd() {
         ${toggleSwitch('add-imp', e.important, '', 'Importante')}
       </div>
     </div>
-    <p class="hint">${icon('sparkles')}<span>Escribe natural: <b>“Gym mañana 7pm !”</b>. Rumbo entiende el día, la hora, la duración (“por 1h”), la categoría (#trabajo) y “!” para importante.</span></p>
+    <p class="hint">${icon('sparkles')}<span>Escribe natural: <b>“Gym mañana 7pm !”</b>. Rumbo entiende el día (“el viernes”, “17/11”), la hora, la duración (“por 1h”), la categoría (#trabajo) y “!” para importante. Si pegas varias líneas, crea una tarea por línea.</span></p>
     <button class="btn primary block" data-action="add-submit"${e.title.trim() ? '' : ' disabled'}>${icon('plus')}Añadir tarea</button>
     ${draft.added.length ? `<div class="added-list">${draft.added.map((t, i) => `<span data-key="ad-${i}">${icon('check')}${esc(t)}</span>`).join('')}</div>` : ''}
   `;
@@ -109,12 +156,22 @@ export function openAdd(preset = 'today') {
     title: 'Nueva tarea',
     auto: false,
     render: renderAdd,
-    right: () => ({ action: 'add-submit', icon: 'check', label: 'Añadir', disabled: !effectiveDraft().title.trim() }),
+    right: () => ({ action: 'add-submit', icon: 'check', label: 'Añadir', disabled: isBatch() ? !batchDrafts().length : !effectiveDraft().title.trim() }),
     onOpen: sheet => setTimeout(() => sheet.querySelector('.compose')?.focus(), 380),
   });
 }
 
 export function submitAdd() {
+  if (isBatch()) {
+    const list = batchDrafts();
+    if (!list.length) return null;
+    const made = list.map(t => addTask(t, false));
+    commit();
+    draft.added.push(...list.map(t => t.title));
+    Object.assign(draft, { text: '', time: '', duration: null, category: null, important: false, manual: draft.manual.when ? { when: true } : {} });
+    refreshSheet();
+    return made[made.length - 1];
+  }
   const e = effectiveDraft();
   if (!e.title.trim()) return null;
   const t = addTask({ title: e.title, date: e.date, time: e.time || null, duration: e.duration, category: e.category, important: e.important });

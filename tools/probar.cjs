@@ -153,6 +153,21 @@ async function main() {
     await click('#fab', 600);
     await js(`(() => { const b = document.querySelector('.sheet .compose'); b.value = 'Prueba mañana 7pm por 1h #salud !'; b.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await click('.sheet [data-action="add-submit"].btn');
+    // Varias líneas pegadas: vista previa con una fila por línea y una tarea por línea al añadir.
+    const batch = await js(`(async () => {
+      const { state } = await import('/js/store.js');
+      const before = state.tasks.length;
+      const b = document.querySelector('.sheet .compose');
+      b.value = '- Visita prueba 17/11 8:30 a. m. #digi\\n2. Otra prueba lunes 9am\\n\\nTercera prueba';
+      b.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 300));
+      const rows = document.querySelectorAll('.sheet .batch-row').length;
+      document.querySelector('.sheet [data-key="bt-go"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const t = state.tasks.find(x => x.title === 'Visita prueba');
+      return { rows, added: state.tasks.length - before, digi: t?.category === 'digiizate' && t?.time === '08:30' };
+    })()`);
+    if (!batch || batch.rows !== 3 || batch.added !== 3 || !batch.digi) problems.push(`Pegar varias líneas falló: ${JSON.stringify(batch)}`);
     await click('.sheet [data-action="sheet-close"]', 700);
     await click('#view .row .task-main', 700);
     await click('.sheet [data-action="sheet-close"]', 700);

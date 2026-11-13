@@ -11,6 +11,7 @@ import { weekStats, hasData } from './weekly.js';
 const LS = 'rumbo.push';
 const HORIZON_DAYS = 7;   // si no abres Rumbo en una semana, los avisos se detienen (y te lo avisa)
 const KEY_DB = 'rumbo-push';
+const EVE_MIN = 19 * 60;  // el resumen de la víspera llega a las 7:00 pm
 
 /* ---------- Estado local del dispositivo (no va en las copias de seguridad) ---------- */
 function info() {
@@ -200,6 +201,17 @@ export function buildEvents(now = Date.now()) {
       for (const t of dayTasks(k)) {
         if (t.done || !t.time) continue;
         add(at(k, toMin(t.time) - lead), 'tarea', `⏰ ${t.title}`, lead ? `Empieza en ${lead} min · ${fmtTime(t.time)}` : `Es ahora · ${fmtTime(t.time)}`, `t-${t.id}`);
+        // Las de Digiízate (visitas, trámites) avisan además 1 hora antes, para alcanzar a llegar.
+        if (t.category === 'digiizate') add(at(k, toMin(t.time) - 60), 'tarea', `🗓 ${t.title}`, `En 1 hora · ${fmtTime(t.time)}`, `t1-${t.id}`);
+      }
+    }
+    // La víspera, a las 7 pm: lo que tienes mañana (sin las rutinas, que son de todos los días).
+    if (n.eve) {
+      const next = dayTasks(addDays(k, 1)).filter(t => !t.done && !t.routineId);
+      if (next.length) {
+        const line = t => `${t.time ? `${fmtTime(t.time)} ` : ''}${[...t.title].length > 40 ? `${[...t.title].slice(0, 39).join('')}…` : t.title}`;
+        const more = next.length > 4 ? ` · y ${next.length - 4} más` : '';
+        add(at(k, EVE_MIN), 'vispera', `📅 Mañana: ${plural(next.length, 'tarea', 'tareas')}`, next.slice(0, 4).map(line).join(' · ') + more, 'vispera');
       }
     }
     if (n.plan && !state.planned[addDays(k, 1)]) add(at(k, toMin(s.planTime)), 'planear', '🌙 Hora de planear mañana', 'Cierra el día y deja listo el siguiente en 3 minutos.', 'planear');

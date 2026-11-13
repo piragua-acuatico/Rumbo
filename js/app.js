@@ -242,6 +242,10 @@ function tick() {
   for (const t of tasksFor(k)) {
     if (t.done || !t.time) continue;
     const start = toMin(t.time);
+    // Digiízate: también 1 hora antes, como en las notificaciones.
+    if (t.category === 'digiizate' && m >= start - 60 && m <= start - 58 && fire(`task1h|${t.id}|${k}`)) {
+      toast(t.title, { sub: `En 1 hora · ${fmtTime(t.time)}`, icon: 'bell', tint: 'c-teal', duration: 7000 });
+    }
     if (m >= start - lead && m <= start + 1 && fire(`task|${t.id}|${k}`)) {
       const left = start - m;
       toast(t.title, { sub: left > 0 ? `Empieza en ${left} min · ${fmtTime(t.time)}` : 'Es ahora', icon: 'bell', tint: 'accent', duration: 7000 });
