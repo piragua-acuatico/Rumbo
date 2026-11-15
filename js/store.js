@@ -54,7 +54,7 @@ function fresh() {
   return {
     version: 2,
     onboarded: false,
-    tasks: [],        // {id,title,date|null,time|null,duration|null,important,done,doneAt,notes,category,subtasks,routineId,createdAt}
+    tasks: [],        // {id,title,date|null,time|null,duration|null,important,done,doneAt,notes,category,subtasks,routineId,createdAt, cid?,csig? (de Claude)}
     routines: [],     // {id,title,time|null,duration|null,days:[0..6],category}
     routineSkips: {}, // "routineId|fecha": true
     water: {},        // fecha: ml
@@ -85,6 +85,7 @@ function fresh() {
 const RE_ID = /^[a-z0-9]{1,40}$/i;
 const RE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RE_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const RE_CID = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const str = (v, max = 500) => (typeof v === 'string' ? v.slice(0, max) : '');
 const id = v => (typeof v === 'string' && RE_ID.test(v) ? v : uid());
@@ -104,6 +105,9 @@ function cleanTask(t) {
     category: cat(t.category), createdAt: Number(t.createdAt) || Date.now(),
     subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 100).map(x => ({ id: id(obj(x).id), title: str(obj(x).title, 300), done: !!obj(x).done })),
     routineId: typeof t.routineId === 'string' && RE_ID.test(t.routineId) ? t.routineId : null,
+    // Tareas que puso Claude (buzón): su nombre fijo y cómo la dejó la última vez (para saber si la cambiaste tú).
+    ...(typeof t.cid === 'string' && RE_CID.test(t.cid) ? { cid: t.cid } : {}),
+    ...(typeof t.csig === 'string' && t.csig ? { csig: t.csig.slice(0, 12000) } : {}),
   };
 }
 function cleanRoutine(r) {

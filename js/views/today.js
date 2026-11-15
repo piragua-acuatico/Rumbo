@@ -6,6 +6,7 @@ import { icon } from '../icons.js';
 import { avatarHTML } from './profile.js';
 import { missionPending, alarmFor, wakeKey, wakeTimeFor, nightMinutes } from '../sleep.js';
 import { weeklyPending, weekLabel, lastWeek } from '../weekly.js';
+import { claudeBanner } from './claude.js';
 
 const liters = ml => (ml / 1000).toLocaleString('es', { maximumFractionDigits: 2 });
 
@@ -110,6 +111,7 @@ export function viewToday() {
       </button>`);
   }
 
+  out.push(claudeBanner());
   if (weeklyPending()) {
     out.push(`
       <button class="banner tappable-card" data-key="b-weekly" data-action="weekly-open" style="--tint: var(--c-purple)">

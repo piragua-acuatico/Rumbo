@@ -6,7 +6,7 @@ import { run } from './actions.js';
 import { ui, parseRoute } from './ui.js';
 import { icon } from './icons.js';
 import { emptyState } from './components.js';
-import { toast, autosize, confetti } from './fx.js';
+import { toast, autosize, confetti, haptic } from './fx.js';
 import { refreshSheet, closeSheet, sheetOpen } from './sheet.js';
 import { initSwipe } from './swipe.js';
 import { registerHandlers, completeTask } from './handlers.js';
@@ -18,6 +18,7 @@ import { checkAchievements } from './achievements.js';
 import { openOnboarding } from './onboarding.js';
 import { initUpdates } from './update.js';
 import { scheduleSync, syncPush, pushStatus, updateBadge, whenPushReady } from './push.js';
+import { initBuzon, syncClaude, scheduleReport } from './buzon.js';
 import { viewToday } from './views/today.js';
 import { viewPlan } from './views/plan.js';
 import { viewDiary } from './views/diary.js';
@@ -322,7 +323,7 @@ document.addEventListener('submit', e => {
   run(`submit:${name}`, e.target, e);
 });
 scroller().addEventListener('scroll', onScroll, { passive: true });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); syncPush(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); tick(); morningBrief(); syncPush(); syncClaude(); } });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => render());
 
 /* ---------- La página siempre quieta ----------
@@ -350,6 +351,7 @@ registerHandlers({ go, back, render, applyTheme });
 initSwipe(id => { const t = getTask(id); if (t) completeTask(t, null); });
 subscribe(render);
 subscribe(scheduleSync);
+subscribe(scheduleReport); // buzón: el informe para Claude se actualiza si cambian tus tareas de Digiízate
 // Logros: se revisan un momento después de cada cambio; al desbloquear uno, confeti (un hito).
 let achTimer = null;
 subscribe(() => {
@@ -372,5 +374,14 @@ setTimeout(tick, 1200);
 
 initUpdates();
 syncPush();
+// Buzón con Claude: al abrir, recoger lo que dejó; el resto lo avisa en pantalla.
+initBuzon(event => {
+  render();
+  if (event === 'claimed') { haptic('success'); toast('Claude se conectó', { sub: 'Compara el número de 6 dígitos', icon: 'sparkles', tint: 'c-orange', duration: 6000 }); }
+  if (event === 'expired') toast('El código venció', { sub: 'Toca Enlazar con Claude otra vez', icon: 'clock', tint: 'c-gray' });
+  if (event === 'applied') haptic('success');
+  if (event === 'lost') toast('Claude se desenlazó', { sub: 'Puedes volver a enlazarlo desde tu Perfil', icon: 'sparkles', tint: 'c-gray', duration: 6000 });
+});
+syncClaude(true);
 whenPushReady().then(render); // habilita el botón "Activar notificaciones"
 onPhotosReady(render);        // las fotos del diario se cargan aparte y redibujan al llegar

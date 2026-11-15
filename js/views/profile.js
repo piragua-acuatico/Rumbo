@@ -10,6 +10,8 @@ import { viewStats } from './stats.js';
 import { pushStatus, pushInfo, pushReady, hasPairCode } from '../push.js';
 import { nightMinutes, at } from '../sleep.js';
 import { ACHIEVEMENTS, unlocked, progressOf } from '../achievements.js';
+import { claudeStage } from '../buzon.js';
+import { viewClaude } from './claude.js';
 
 const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 const guideDone = id => GUIDES[id].steps.filter((_, i) => state.guide[`${id}.${i}`]).length;
@@ -62,6 +64,7 @@ export function viewProfile() {
     <h2 class="sec-h small" data-key="h-notify">Avisos</h2>
     <section class="group icons" data-key="g-notify">
       ${cell({ ic: 'bell', tint: 'c-red', label: 'Notificaciones', value: NOTIFY_LABEL[pushStatus()], action: 'go', attrs: go('notificaciones'), chevron: true })}
+      ${cell({ ic: 'sparkles', tint: 'c-orange', label: 'Claude', value: CLAUDE_LABEL[claudeStage()] || '', action: 'go', attrs: go('claude'), chevron: true })}
     </section>
 
     <h2 class="sec-h small" data-key="h-hab">Hábitos</h2>
@@ -89,6 +92,7 @@ export function viewProfile() {
 /* =========================================================
    Subpantallas
    ========================================================= */
+const CLAUDE_LABEL = { none: '', waiting: 'Enlazando…', verify: 'Falta confirmar', linked: 'Enlazado' };
 const NOTIFY_LABEL = { on: 'Activadas', off: 'Desactivadas', denied: 'Bloqueadas', 'needs-install': 'Instala la app', unsupported: 'No disponibles', 'no-server': 'Muy pronto' };
 
 function viewNotifications() {
@@ -339,6 +343,7 @@ export const PROFILE_PAGES = {
   estadisticas: ['Estadísticas', viewStats],
   logros: ['Logros', viewAchievements],
   notificaciones: ['Notificaciones', viewNotifications],
+  claude: ['Claude', viewClaude],
   agua: ['Agua', viewWater],
   enfoque: ['Enfoque', viewFocusSettings],
   sueno: ['Sueño', viewSleep],

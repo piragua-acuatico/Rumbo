@@ -9,7 +9,9 @@
 // (secreto PAIR_CODE). Después, cada dispositivo se identifica con su id aleatorio.
 //
 // Rutas: POST /subscribe · POST /schedule · POST /test · POST /unsubscribe · GET /health
+// Buzón con Claude (ver buzon.js): /link/* y /mail/* (iPhone) · /pc/* (el PC de Camilo)
 import { sendWebPush, fromB64u, b64u } from './webpush.js';
+import { handleApp, handlePc, cleanBuzon } from './buzon.js';
 
 const MAX_SUBS = 5;            // es una app personal: pocos dispositivos
 const MAX_EVENTS = 400;        // por dispositivo
@@ -111,9 +113,12 @@ async function handle(req, env, cors) {
 
   let body;
   try { body = await req.json(); } catch { return json({ error: 'json' }, 400, cors); }
-  const id = String(body?.id || '');
-  if (!RE_ID.test(id)) return json({ error: 'id' }, 400, cors);
+  if (!body || typeof body !== 'object') return json({ error: 'json' }, 400, cors);
   const now = Date.now();
+  if (url.pathname.startsWith('/pc/')) return handlePc(url.pathname, body, env, now, { json, getSub, push });
+  const id = String(body.id || '');
+  if (!RE_ID.test(id)) return json({ error: 'id' }, 400, cors);
+  if (url.pathname.startsWith('/link/') || url.pathname.startsWith('/mail/')) return handleApp(url.pathname, body, env, now, { json, cors, getSub });
 
   if (url.pathname === '/subscribe') {
     if (!env.PAIR_CODE || !sameSecret(body.pair || '', env.PAIR_CODE)) return json({ error: 'código' }, 403, cors);
@@ -215,6 +220,8 @@ export async function sendDue(env, now = Date.now()) {
     env.DB.prepare('DELETE FROM events WHERE sub_id IN (SELECT id FROM subs WHERE updated_at < ?1)').bind(now - STALE),
     env.DB.prepare('DELETE FROM subs WHERE updated_at < ?1').bind(now - STALE),
   ]);
+  // Una vez por hora: códigos de enlace vencidos y paquetes del buzón que nadie recogió.
+  if (new Date(now).getUTCMinutes() === 0) await cleanBuzon(env, now).catch(err => console.log('limpieza buzón', String(err)));
   return sent;
 }
 
@@ -222,7 +229,10 @@ export default {
   async fetch(req, env) {
     const cors = corsFor(req, env);
     if (req.method === 'OPTIONS') return new Response(null, { status: cors ? 204 : 403, headers: cors || {} });
-    if (!cors && new URL(req.url).pathname !== '/health') return json({ error: 'origen no permitido' }, 403, {});
+    // El PC de Camilo (un script, no un navegador) no manda Origin: sus rutas se protegen con su token.
+    const path = new URL(req.url).pathname;
+    const fromScript = path.startsWith('/pc/') && !req.headers.get('Origin');
+    if (!cors && path !== '/health' && !fromScript) return json({ error: 'origen no permitido' }, 403, {});
     try {
       return await handle(req, env, cors || {});
     } catch (err) {

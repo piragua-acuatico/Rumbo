@@ -18,6 +18,7 @@ import { openOnboarding, onbNext, onbBack } from './onboarding.js';
 import { nightPlanDate, isNightTime } from './night.js';
 import { GUIDES } from './guides.js';
 import { enablePush, disablePush, testPush } from './push.js';
+import { startLink, confirmLink, unlink, syncClaude, undoLast, dismissLast, claudeInfo, isSyncing } from './buzon.js';
 import { savePhoto, deletePhoto, clearPhotos, exportPhotos, importPhotos, photoKeys } from './photos.js';
 import { zip, unzip, isZip } from './zip.js';
 import { openDay } from './views/diary.js';
@@ -695,6 +696,75 @@ export function registerHandlers({ go, back, render, applyTheme }) {
     state.settings.notify[k] = !state.settings.notify[k];
     haptic();
     commit();
+  });
+
+  /* ---------- Buzón con Claude ---------- */
+  on('claude-link', el => {
+    el.disabled = true;
+    startLink().then(() => haptic()).catch(err => {
+      const msg = {
+        'sin-avisos': ['Primero activa las notificaciones', 'El buzón usa el mismo servidor'],
+        'servidor-viejo': ['Falta actualizar el servidor', 'Hay que publicar la versión nueva en Cloudflare'],
+      }[err?.message] || ['No se pudo enlazar', 'Revisa tu conexión e inténtalo de nuevo'];
+      toast(msg[0], { sub: msg[1], icon: 'xmark', tint: 'c-red', duration: 7000 });
+    }).finally(() => render());
+  });
+  on('claude-copy', async () => {
+    const code = String(claudeInfo().code || '');
+    try {
+      await navigator.clipboard.writeText(`${code.slice(0, 4)}-${code.slice(4)}`);
+      toast('Código copiado', { sub: 'Pégaselo a Claude en el chat', icon: 'check', tint: 'c-green' });
+    } catch {
+      toast('No se pudo copiar', { sub: 'Escríbelo tal cual se ve', icon: 'xmark', tint: 'c-orange' });
+    }
+  });
+  on('claude-cancel', async () => { await unlink(); render(); });
+  on('claude-confirm', el => {
+    el.disabled = true;
+    confirmLink().then(() => {
+      haptic('success');
+      toast('¡Enlazado con Claude!', { sub: 'Ya puede poner tus tareas de Digiízate', icon: 'sparkles', tint: 'c-green' });
+    }).catch(err => {
+      toast(err?.message === 'sin-enlace' ? 'El enlace se perdió' : 'No se pudo confirmar', { sub: err?.message === 'sin-enlace' ? 'Vuelve a enlazar desde el principio' : 'Revisa tu conexión', icon: 'xmark', tint: 'c-red' });
+      if (err?.message === 'sin-enlace') unlink().then(render);
+    }).finally(() => render());
+  });
+  on('claude-reject', async () => {
+    await alertDialog({
+      title: 'Enlace cancelado',
+      message: 'Por seguridad, si los números no coinciden no se enlaza. Vuelve a intentarlo desde el principio; si se repite, cuéntaselo a Claude.',
+      actions: [{ label: 'Entendido', style: 'default' }],
+    });
+    await unlink();
+    render();
+  });
+  on('claude-unlink', async () => {
+    const i = await alertDialog({
+      title: '¿Desenlazar a Claude?', message: 'Claude ya no podrá poner tareas ni ver cómo vas. Las tareas que ya puso se quedan.',
+      actions: [{ label: 'Cancelar', style: 'cancel' }, { label: 'Desenlazar', style: 'destructive' }],
+    });
+    if (i !== 1) return;
+    const ok = await unlink();
+    render();
+    toast('Claude desenlazado', { sub: ok ? 'Su llave ya no sirve' : 'Sin conexión: el servidor lo borrará cuando vuelva la red', icon: 'sparkles', tint: 'c-gray' });
+  });
+  on('claude-undo', () => {
+    if (isSyncing()) { toast('Un momento', { sub: 'Rumbo está revisando el buzón', icon: 'clock', tint: 'c-gray' }); return; }
+    const r = undoLast();
+    if (!r) { toast('Ya no se puede deshacer', { sub: 'Pasaron más de 24 horas', icon: 'clock', tint: 'c-gray' }); render(); return; }
+    haptic();
+    toast('Cambios de Claude deshechos', {
+      sub: r.kept ? `${r.kept === 1 ? 'Una tarea se quedó' : `${r.kept} tareas se quedaron`} como la dejaste tú` : 'Claude lo verá en su informe',
+      icon: 'arrow-uturn', tint: 'c-orange', duration: 5000,
+    });
+  });
+  on('claude-dismiss', () => { dismissLast(); render(); });
+  on('claude-sync', async el => {
+    el.disabled = true;
+    const got = await syncClaude(true);
+    el.disabled = false;
+    render();
+    toast(got ? 'Claude actualizó tu agenda' : 'Buzón revisado', { sub: got ? 'Mira los cambios abajo' : 'No había nada nuevo', icon: 'sparkles', tint: 'c-orange' });
   });
 
   /* ---------- Foto de perfil ---------- */

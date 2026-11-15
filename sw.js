@@ -1,7 +1,7 @@
 // Guarda la app en el teléfono para que abra sin internet y se actualice sola.
 // VERSION la cambia `node tools/publicar.cjs` en cada publicación: al cambiar este
 // archivo, el iPhone detecta la versión nueva y la instala.
-const VERSION = '2.8.0';
+const VERSION = '2.9.0';
 const CACHE = `rumbo-${VERSION}`;
 const ASSETS = [
   './',
@@ -11,6 +11,7 @@ const ASSETS = [
   './js/achievements.js',
   './js/actions.js',
   './js/app.js',
+  './js/buzon.js',
   './js/components.js',
   './js/config.js',
   './js/crossfit.js',
@@ -37,6 +38,7 @@ const ASSETS = [
   './js/version.js',
   './js/weekly.js',
   './js/zip.js',
+  './js/views/claude.js',
   './js/views/crossfit.js',
   './js/views/diary.js',
   './js/views/inbox.js',
@@ -100,6 +102,7 @@ const FALLBACK = {
   alarma: ['⏰ Hora de despertar', 'Abre Rumbo y resuelve tu misión.'],
   arbol: ['🌳 Tu árbol está creciendo', 'Vuelve a Rumbo cuando quieras.'],
   resumen: ['📊 Tu semana en Rumbo', 'Mira cómo te fue la semana pasada.'],
+  claude: ['🤖 Claude actualizó tu agenda', 'Abre Rumbo para ver los cambios.'],
   prueba: ['🔔 Rumbo', 'Aviso de prueba'],
 };
 
@@ -140,7 +143,8 @@ self.addEventListener('push', e => {
     let data = {};
     try { data = e.data ? e.data.json() : {}; } catch { /* sin datos */ }
     let msg = null;
-    try {
+    // Algunos avisos no traen contenido (el del buzón de Claude: el servidor no sabe qué cambió).
+    if (data.e) try {
       msg = await openMessage(data.e, data.d, data.k);
     } catch (err) {
       // Clave perdida o mensaje alterado: se muestra el texto genérico y se anota el motivo para la app.

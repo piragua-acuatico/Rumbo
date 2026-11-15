@@ -1670,3 +1670,19 @@ button.diary-row { width: 100%; text-align: left; align-items: center; }
 .wk-notes span { font-size: 22px; }
 .wk-foot { text-align: center; font-size: 12.5px; color: var(--label-2); margin: 10px 0 4px; }
 .wk-img { display: block; width: 100%; border-radius: 18px; margin-top: 4px; }
+
+/* ---------- Buzón con Claude (v2.9) ---------- */
+.claude-hero .notify-ic { background: linear-gradient(145deg, #FFB37A, #E8743B); box-shadow: 0 10px 26px rgba(232, 116, 59, .3); animation: none; }
+.claude-hero p small { display: block; margin-top: 8px; font-size: 13px; color: var(--label-3); }
+.link-code {
+  margin: 4px 0 14px; font: 700 36px/1.15 var(--font-round); letter-spacing: 3px; color: var(--label);
+  font-variant-numeric: tabular-nums; user-select: all; -webkit-user-select: all;
+}
+.link-code.safety { font-size: 44px; letter-spacing: 4px; }
+.waiting-dot {
+  display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--c-orange);
+  vertical-align: 1px; animation: waitPulse 1.4s ease-in-out infinite;
+}
+@keyframes waitPulse { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
+.banner-undo { position: relative; flex: none; align-self: center; padding: 6px 2px; font-size: 15px; font-weight: 600; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .waiting-dot { animation: none; opacity: 1; } }

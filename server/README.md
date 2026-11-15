@@ -10,15 +10,26 @@ Pequeño programa que vive en **Cloudflare Workers** (gratis) y envía las notif
 
 El servidor nunca ve el título de tus tareas: solo guarda texto cifrado.
 
+## Buzón con Claude (desde Rumbo 2.9)
+Claude, desde el PC de Camilo, deja cambios de tareas para el iPhone (`node tools/buzon.cjs enviar archivo.json`), y el iPhone le deja un informe de sus tareas de Digiízate (`node tools/buzon.cjs leer`).
+- **Cifrado de punta a punta:** el iPhone y el PC acuerdan una llave (ECDH P-256 → HKDF → AES-GCM). El servidor solo guarda paquetes que no puede leer.
+- **Enlace:** el iPhone pide un código de 8 letras (vence en 10 min) y manda solo la *huella* de su llave. El PC canjea el código, recibe su propio permiso (token; aquí solo se guarda su SHA-256) y manda su llave; recién entonces el iPhone revela la suya (como ZRTP: así nadie en el medio puede fabricar llaves a la medida). Los dos muestran un número de 6 dígitos y Camilo confirma que coinciden. Hasta entonces el servidor no acepta envíos.
+- **Orden:** cada paquete lleva un número que solo sube; el iPhone descarta los repetidos o atrasados.
+- **Límites:** 30 paquetes sin recoger, 120 000 caracteres por paquete y un aviso «Claude actualizó tu agenda» por minuto. Los paquetes que nadie recoge en 30 días se borran.
+- **Llave del PC:** está en `%APPDATA%\Rumbo\buzon-llave.json`, fuera del repositorio. Desenlazar desde el iPhone la invalida al instante.
+- Las tablas (`links`, `mail`) se crean solas la primera vez: basta con `npx wrangler deploy`.
+
 ## Archivos
 | Archivo | Qué es |
 |---|---|
 | `wrangler.toml` | Configuración: nombre, cron de cada minuto, base de datos y variables públicas. |
 | `schema.sql` | Las dos tablas de la base de datos: `subs` (tu iPhone) y `events` (avisos programados). |
 | `src/index.js` | El servidor: las rutas `/subscribe`, `/schedule`, `/test` y `/unsubscribe`, más el envío de cada minuto. |
+| `src/buzon.js` | El buzón con Claude: rutas `/link/*` y `/mail/*` (iPhone) y `/pc/*` (el PC). |
 | `src/webpush.js` | El estándar Web Push: cifrado (RFC 8291) y firma VAPID (RFC 8292), sin librerías. |
 | `test/webpush.test.mjs` | Prueba que el cifrado coincide byte a byte con el ejemplo oficial del RFC. |
 | `test/servidor.local.mjs` | Prueba de punta a punta del servidor en tu computadora. |
+| `test/buzon.local.mjs` | Prueba del buzón (seguridad y flujo completo con `tools/buzon.cjs`). |
 | `.vapid-privada.json` | **Secreta.** La clave privada con la que tu servidor firma los avisos. No se sube a GitHub. |
 
 ## Comandos útiles (dentro de `server/`)
